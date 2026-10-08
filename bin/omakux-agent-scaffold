@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# omakux:summary Genera un AGENTS.md con tus convenciones: omakux agent scaffold [dir]
+# omakux:group agent
+# omakux:usage omakux agent scaffold [DIR]  — escribe AGENTS.md en DIR (por defecto .)
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+dir="${1:-.}"
+dir="${dir%/}"
+[ -d "$dir" ] || { err "no existe el directorio '$dir'"; exit 1; }
+start="$(pwd)"
+cd "$dir"
+abspath="$(pwd)"
+cd "$start"
+file="$abspath/AGENTS.md"
+
+detect_lint() {
+  if [ -f "$1/scripts/lint.sh" ]; then echo "scripts/lint.sh"; return; fi
+  if [ -f "$1/scripts/lint" ]; then echo "scripts/lint"; return; fi
+  if [ -f "$1/package.json" ] && grep -q '"lint"' "$1/package.json" 2>/dev/null; then echo "npm run lint"; return; fi
+  if [ -f "$1/Makefile" ] && grep -q '^lint:' "$1/Makefile" 2>/dev/null; then echo "make lint"; return; fi
+  if [ -f "$1/Cargo.toml" ]; then echo "cargo clippy"; return; fi
+  if [ -f "$1/.shellcheckrc" ]; then echo "shellcheck ."; return; fi
+  echo ""
+}
+
+detect_test() {
+  if [ -f "$1/scripts/test.sh" ]; then echo "scripts/test.sh"; return; fi
+  if [ -f "$1/scripts/test" ]; then echo "scripts/test"; return; fi
+  if [ -f "$1/package.json" ] && grep -q '"test"' "$1/package.json" 2>/dev/null; then echo "npm test"; return; fi
+  if [ -f "$1/Makefile" ] && grep -q '^test:' "$1/Makefile" 2>/dev/null; then echo "make test"; return; fi
+  if [ -d "$1/tests" ] || [ -d "$1/test" ]; then echo "./tests"; return; fi
+  echo ""
+}
+
+lint_cmd="$(detect_lint "$abspath")"
+test_cmd="$(detect_test "$abspath")"
+
+if [ -f "$file" ]; then
+  backup_file "$file"
+  log "AGENTS.md existente respaldado en backup"
+fi
+
+write_body() {
+  cat <<'EOF'
+# AGENTS.md — reglas para agentes de código
+
+Generado por `omakux agent scaffold`.
+
+## Entorno
+EOF
+  local os
+  os="$(. /etc/os-release 2>/dev/null && printf '%s %s' "$NAME" "$VERSION_ID" 2>/dev/null || echo "Linux")"
+  printf '%s\n' "- OS: ${os} (usuario: ${USER}, fecha: $(date +%Y-%m-%d))"
+  printf '%s\n' "- Shell interactivo: fish · scripts e instaladores: bash"
+  cat <<'EOF'
+
+## Cómo trabajar aquí
+1. Lee primero el README o docs/ antes de cambiar nada.
+2. No adivines comandos: mira Makefile, package.json, scripts/, etc.
+3. No inyectes dependencias nuevas: usa las que ya trae el proyecto.
+4. Haz cambios pequeños y verificables, no reescrituras completas.
+5. Tras tocar código, corre lint y la suite de tests (abajo).
+6. No versiones secretos ni claves, jamás.
+7. Commits cortos en español, tipo conventional (feat/fix/docs/refactor).
+
+## Forma de trabajo omakux
+- Prefiere herramientas ya instaladas de la workstation (fish, git, ripgrep).
+- Pregunta antes de ejecutar comandos con efectos fuera del proyecto.
+- No añadas comentarios al código salvo que aporten contexto.
+- Respeta la estructura y las convenciones existentes del repositorio.
+
+## Comandos detectados
+EOF
+}
+
+write_body >"$file"
+{
+  if [ -n "$lint_cmd" ]; then
+    printf '%s\n' "- lint:  $lint_cmd"
+  else
+    printf '%s\n' "- lint:  (no se ha detectado — añade tu comando aquí)"
+  fi
+  if [ -n "$test_cmd" ]; then
+    printf '%s\n' "- tests: $test_cmd"
+  else
+    printf '%s\n' "- tests: (no se ha detectado — añade tu comando aquí)"
+  fi
+} >>"$file"
+
+ok "AGENTS.md listo en $file"

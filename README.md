@@ -53,6 +53,8 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 | `omakux completion [install]` | completado para bash, fish o zsh |
 | `omakux config list/diff` | qué dotfiles gestiona omakux y tus cambios sobre el repo |
 | `omakux config export/import` | tus dotfiles a un repo (o desde uno) |
+| `omakux agent scaffold` | AGENTS.md con tus convenciones para cada proyecto |
+| `omakux agent doctor` | qué agentes IA y runtimes tienes listos |
 | `omakux update` | snapshot + apt + flatpak + snap + git + reaplica configs |
 | `omakux doctor` | diagnóstico de la instalación |
 | `omakux menu` | menú interactivo (wofi/gum) |
@@ -81,6 +83,20 @@ omakux config import ~/dotfiles # restaura los de otra máquina (con backup prev
 Para los `render`, omakux guarda una foto de lo último que pintó
 (`~/.local/state/omakux/rendered`): así `config diff` te muestra SOLO lo que
 editaste después del `omakux theme set`, no el render entero.
+
+## Agentes IA
+
+omakux integra los agentes de código con tu estación, no a la inversa:
+
+```bash
+omakux ai install          # claude, codex, ollama (y voxtype para dictado)
+omakux agent doctor        # estado de opencode, claude, codex, ollama y runtimes
+omakux agent scaffold      # AGENTS.md con tus convenciones (fshell, lint/test detectados)
+```
+
+`omakux agent scaffold` detecta por ti el linter y la suite de tests del
+proyecto (scripts/, package.json, Makefile, Cargo.toml…) y escribe un
+AGENTS.md listo para cualquier agente (respaldando el tuyo si ya existía).
 
 ## Temas
 
@@ -139,8 +155,8 @@ omakux/
 ## Desarrollo
 
 ```bash
-omakux lint   # shellcheck sobre los 66 scripts
-omakux test   # lint + 71 tests bats
+omakux lint   # shellcheck sobre los 68 scripts
+omakux test   # lint + 79 tests bats
 ```
 
 (atajos: `scripts/lint.sh` y `scripts/test.sh`, lo mismo que corre la CI)

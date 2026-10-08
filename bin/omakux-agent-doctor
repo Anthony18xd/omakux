@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# omakux:summary Estado de tus agentes IA y runtimes: omakux agent doctor
+# omakux:group agent
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+export OMAKUX_LIVE=0
+
+[ -e "$OMAKUX_STATE" ] || mkdir -p "$OMAKUX_STATE"
+
+report() {
+  local name="$1" install_hint="$2"
+  if command -v "$name" >/dev/null 2>&1; then
+    local v=""
+    v="$("$name" --version 2>/dev/null | head -1 || true)"
+    printf '  %-10s ✓ listo' "$name"
+    [ -n "$v" ] && printf '  (%s)' "$v"
+    printf '\n'
+  else
+    printf '  %-10s ✗ no instalado  (instala: %s)\n' "$name" "$install_hint"
+  fi
+}
+
+printf 'agentes IA:\n'
+report opencode "opencode"
+report claude "omakux ai install claude"
+report codex "omakux ai install codex"
+report ollama "omakux ai install ollama"
+report voxtype "omakux ai install voxtype"
+
+printf 'runtimes:\n'
+for rt in git fish mise node npm python3 ffmpeg; do
+  if command -v "$rt" >/dev/null 2>&1; then
+    printf '  %-10s ✓\n' "$rt"
+  else
+    printf '  %-10s ✗\n' "$rt"
+  fi
+done
