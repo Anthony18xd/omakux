@@ -1,0 +1,25 @@
+# omakux — manifest de render del tema activo
+#
+# Cada línea:  <src>  <dest>  <req>
+#   src  relativo a config-themes/           (sin espacios)
+#   dest ruta; `~/...` se expande a $HOME     (sin espacios)
+#   req  `-`                → siempre
+#        cmd:a,b             → si existe alguno de esos binarios
+#        dir:~/ruta          → si existe el directorio
+#        root                → si el destino es escribible (o hay sudo cacheado)
+#
+# Este archivo decide qué pinta omakux theme set. Si añades una app,
+# añade su línea y su template; si la app no está, se omite sin ruido.
+
+alacritty/alacritty.toml   ~/.config/alacritty/alacritty.toml   cmd:alacritty
+waybar/style.css           ~/.config/waybar/style.css           cmd:waybar
+wofi/style.css             ~/.config/wofi/style.css             cmd:wofi
+hypr/hyprlock.conf         ~/.config/hypr/hyprlock.conf         cmd:hyprlock,hyprland
+hypr/colors.conf           ~/.config/hypr/colors.conf           cmd:hyprland
+dunst/dunst.conf           ~/.config/dunst/dunst.conf           cmd:dunst
+starship/starship.toml     ~/.config/starship.toml              cmd:starship
+tmux/colors.conf           ~/.config/tmux/colors.conf           cmd:tmux
+btop/omakux.theme          ~/.config/btop/themes/omakux.theme   cmd:btop
+gtk/settings.ini           ~/.config/gtk-3.0/settings.ini       -
+gtk/settings.ini           ~/.config/gtk-4.0/settings.ini       -
+gdm/custom.css             /etc/gdm3/custom.css                 root

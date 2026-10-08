@@ -30,5 +30,10 @@ if [ ! -f "$dest/colors.sh" ]; then
   die "el repositorio no contiene colors.sh (no es un tema omakux válido)"
 fi
 
+# la paleta tiene que ser usable antes de ofrecerla
+if ! bash "$OMAKUX_BIN/omakux-theme-lint" "$name"; then
+  warn "el tema '$name' tiene errores de paleta: omakux theme lint $name"
+fi
+
 ok "tema instalado: $name"
 echo "apícalo con: omakux theme set $name"

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# omakux:summary Watch a theme and re-apply it while you edit: omakux theme live [name]
+# omakux:group theme
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+NAME="${1:-$(cat "$OMAKUX_STATE/theme" 2>/dev/null || echo tokyonight)}"
+THEME_DIR="$OMAKUX_PATH/themes/$NAME"
+[ -d "$THEME_DIR" ] || die "tema no encontrado: $NAME (ver: omakux theme list)"
+
+INTERVAL="${OMAKUX_LIVE_INTERVAL:-0.5}"
+
+fingerprint() {
+  # cambia al editar cualquier archivo del tema (colors.sh o wallpaper.svg)
+  cat "$THEME_DIR"/* 2>/dev/null | cksum
+}
+
+apply() {
+  if bash "$OMAKUX_BIN/omakux-theme-set" "$NAME"; then
+    printf '  %s✓%s %s re-aplicado (%s)\n' "$_c_green" "$_c_reset" "$(date +%T)" "$1"
+  else
+    printf '  %s✗%s error al renderizar — sigue editando, reintento solo\n' \
+      "$_c_red" "$_c_reset" >&2
+  fi
+}
+
+echo
+echo "omakux theme live — $NAME"
+echo "vigilando: $THEME_DIR"
+echo "Ctrl-C para salir"
+echo
+
+last="$(fingerprint)"
+apply "inicial"
+
+while sleep "$INTERVAL"; do
+  now="$(fingerprint)"
+  [ "$now" = "$last" ] && continue
+  last="$now"
+  apply "cambio detectado"
+done

@@ -53,6 +53,7 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 | `omakux doctor` | diagnóstico de la instalación |
 | `omakux menu` | menú interactivo (wofi/gum) |
 | `omakux theme set/list/install` | cambiar temas en todo el sistema |
+| `omakux theme lint/live` | validar una paleta / re-aplicar mientras editas |
 | `omakux webapp add <nombre> <url>` | convierte un sitio en app con icono |
 | `omakux pkg install <pkg>` | apt con registro para desinstalar después |
 | `omakux capture [area\|full]` | capturas en GNOME **y** Hyprland |
@@ -63,11 +64,20 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 
 ## Temas
 
-Un solo `colors.sh` + `wallpaper.svg` por tema pinta: GNOME (gsettings/fondo), Alacritty, Waybar, Wofi, Hyprlock, Dunst, tmux, Starship, btop, Neovim y VSCode.
+Un solo `colors.sh` + `wallpaper.svg` por tema pinta **todo**: GNOME
+(gsettings, iconos, cursor, acento, fondo), **GTK 3/4**, **GDM**, Alacritty,
+Waybar, Wofi, Hyprlock, Dunst, tmux, Starship, btop, Neovim, VSCode y Discord.
+
+Qué se pinta se decide en **`config-themes/manifest`** (declarativo: origen,
+destino y requisito). Si la app no está instalada, esa línea se omite sin
+ruido; los targets de sistema (`/etc/gdm3/custom.css`) piden sudo y, si no lo
+tienes, se avisan y se omiten sin abortar.
 
 ```
 omakux theme list
-omakux theme set gruvbox-dark
+omakux theme set gruvbox-dark       # aplica el tema en todo
+omakux theme lint gruvbox-dark      # valida la paleta sin aplicar nada
+omakux theme live gruvbox-dark      # re-aplica solo mientras editas colors.sh
 omakux theme install https://github.com/usuario/omakux-mi-tema-theme
 ```
 
@@ -75,7 +85,18 @@ Semilla: `tokyonight` (default), `catppuccin-mocha`, `gruvbox-dark`.
 
 ### Crear un tema
 
-Copia `themes/tokyonight/`, cambia colores en `colors.sh` (mínimos: `color_bg fg surface accent muted red green yellow blue magenta cyan orange`), edita `wallpaper.svg` y haz `omakux theme set <nombre>`.
+1. `cp -r themes/tokyonight themes/mi-tema`
+2. Cambia los colores en `colors.sh` (mínimos: `color_bg fg surface accent
+   muted red green yellow blue magenta cyan orange`; opcionales: `gtk_theme`,
+   `icon_theme`, `cursor_theme`, `ui_font`, `gnome_accent`, `gnome_scheme`,
+   `vscode_theme`, `nvim_plugin`/`nvim_theme`).
+3. Edita `wallpaper.svg`.
+4. `omakux theme lint mi-tema` → debe salir limpio.
+5. `omakux theme set mi-tema`.
+
+Para añadir una app nueva al motor: mete su template en `config-themes/<app>/`
+con `{{placeholders}}` y una línea en `config-themes/manifest`. No toques nunca
+los ficheros renderizados en `~/.config` (se regeneran).
 
 ## Estructura
 
@@ -86,7 +107,7 @@ omakux/
 ├── bin/                 # CLI: router + omakux-<comando> (headers # omakux:summary)
 ├── install/             # fases + listas de paquetes *.apt
 ├── config/              # semillas estáticas (fish, tmux, yazi)
-├── config-themes/       # templates con {{placeholders}} (se renderizan por tema)
+├── config-themes/       # manifest + templates con {{placeholders}}
 ├── themes/              # <tema>/colors.sh + wallpaper.svg
 ├── applications/        # install/ y remove/ de apps opcionales
 ├── migrations/          # cambios entre versiones
@@ -98,8 +119,8 @@ omakux/
 ## Desarrollo
 
 ```bash
-omakux lint   # shellcheck sobre los 56 scripts
-omakux test   # lint + 34 tests bats
+omakux lint   # shellcheck sobre los 61 scripts
+omakux test   # lint + 48 tests bats
 ```
 
 (atajos: `scripts/lint.sh` y `scripts/test.sh`, lo mismo que corre la CI)
@@ -115,7 +136,8 @@ Reglas que la CI hace cumplir:
   comando expone `# omakux:summary` y `# omakux:group` (si no, el help se rompe).
 - **Nada se escribe en dry-run**: ni sellos de fase, ni configs, ni estado.
 - `seed`/`backup_file` respaldan antes de sobreescribir.
-- Toda paleta define la lista mínima de colores.
+- Toda paleta define la lista mínima de colores (`omakux theme lint`).
+- El **manifest** de temas solo renderiza targets cuyo requisito se cumple.
 
 ## Seguridad
 

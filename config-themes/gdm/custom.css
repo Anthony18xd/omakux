@@ -1,0 +1,29 @@
+/* omakux — GDM / pantalla de login (GENERADO: omakux theme set <nombre>)
+ * se copia a /etc/gdm3/custom.css (necesita sudo); bórralo para volver al
+ * aspecto por defecto:  sudo rm /etc/gdm3/custom.css
+ */
+.login-dialog {
+  background-color: {{color_bg}};
+}
+
+.login-dialog-timed-header-row {
+  background-color: {{color_surface}};
+}
+
+.login-dialog-timed-login-title,
+.login-dialog-timed-login-seconds {
+  color: {{color_fg}};
+}
+
+.login-dialog-logo-name,
+.login-dialog-session-list-button {
+  color: {{color_muted}};
+}
+
+.banner {
+  background-color: {{color_red}};
+}
+
+.banner-message {
+  color: {{color_bg}};
+}

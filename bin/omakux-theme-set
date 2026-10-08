@@ -36,6 +36,16 @@ color_border_active="${color_border_active:-$color_accent}"
 color_selection="${color_selection:-$color_accent}"
 color_black="${color_black:-#0b0c0e}"
 color_shadow="${color_shadow:-#000000}"
+icon_theme="${icon_theme:-Yaru}"
+cursor_theme="${cursor_theme:-Yaru}"
+ui_font="${ui_font:-Cantarell 11}"
+gtk_theme="${gtk_theme:-Adwaita-dark}"
+gnome_scheme="${gnome_scheme:-prefer-dark}"
+gtk_dark="false"
+discord_theme="light"
+case "$gnome_scheme" in
+  prefer-dark) gtk_dark="true" discord_theme="dark" ;;
+esac
 
 strip_hash() { printf '%s' "${1#\#}"; }
 
@@ -52,10 +62,18 @@ VARS[color_muted_a]="cc$(strip_hash "$color_muted")"
 VARS[vscode_theme]="${vscode_theme:-Visual Studio Dark}"
 VARS[nvim_plugin]="${nvim_plugin:-}"
 VARS[nvim_theme]="${nvim_theme:-}"
+VARS[icon_theme]="$icon_theme"
+VARS[cursor_theme]="$cursor_theme"
+VARS[ui_font]="$ui_font"
+VARS[gtk_theme]="$gtk_theme"
+VARS[gtk_dark]="$gtk_dark"
+VARS[discord_theme]="$discord_theme"
+VARS[gnome_scheme]="$gnome_scheme"
+VARS[gnome_accent]="${gnome_accent:-blue}"
 
 # ─── 2. wallpaper ──────────────────────────────────────────────────
 WALL_DIR="$OMAKUX_STATE/wallpapers"
-mkdir -p "$WALL_DIR"
+[ "$OMAKUX_DRY" = "1" ] || mkdir -p "$WALL_DIR"
 wall_src="$THEME_DIR/wallpaper.svg"
 wall_png="$WALL_DIR/$NAME.png"
 
@@ -80,11 +98,46 @@ fi
 ACTIVE_WALL="$WALL_DIR/active.png"
 [ -f "$ACTIVE_WALL" ] || ACTIVE_WALL="$WALL_DIR/active.svg"
 
-# ─── 3. renderizar templates ───────────────────────────────────────
+# ─── 3. renderizar targets (config-themes/manifest) ────────────────
+# requisito de una línea del manifest: `-` | cmd:a,b | dir:~/x | root
+req_ok() {
+  local req="${1:-}" dest="${2:-}" p dir
+  case "$req" in
+    "" | -) return 0 ;;
+    root)
+      dir="$(dirname "$dest")"
+      [ -w "$dir" ] && return 0
+      sudo -n true 2>/dev/null && return 0
+      warn "sin credenciales de sudo: omitido $dest"
+      return 1
+      ;;
+    cmd:*)
+      local -a cmds
+      IFS=',' read -ra cmds <<<"${req#cmd:}"
+      for p in "${cmds[@]}"; do
+        command -v "$p" >/dev/null 2>&1 && return 0
+      done
+      return 1
+      ;;
+    dir:*)
+      local d="${req#dir:}"
+      d="${d/#\~/$HOME}"
+      [ -d "$d" ] && return 0
+      return 1
+      ;;
+    *)
+      warn "manifest: requisito desconocido '$req'"
+      return 0
+      ;;
+  esac
+}
+
+# sustituye {{placeholders}} y escribe el destino de forma atómica.
+# fuera del dry-run, si no hay permisos de escritura usa sudo cacheado o lo omite.
 render() {
   local src="$1" dest="$2"
+  [ -f "$src" ] || { warn "template no encontrado: $src"; return 1; }
   local args=() k
-  [ -f "$src" ] || { warn "template no encontrado: $src"; return 0; }
   for k in "${!VARS[@]}"; do
     args+=(-e "s|{{$k}}|${VARS[$k]}|g")
   done
@@ -92,19 +145,45 @@ render() {
     printf '%sDRY render %s -> %s%s\n' "$_c_dim" "$src" "$dest" "$_c_reset"
     return 0
   fi
-  mkdir -p "$(dirname "$dest")"
-  sed "${args[@]}" "$src" >"$dest"
+  local tmp dir wrote
+  tmp="$(mktemp)"
+  sed "${args[@]}" "$src" >"$tmp"
+  dir="$(dirname "$dest")"
+  mkdir -p "$dir" 2>/dev/null || true
+  wrote=0
+  if [ -w "$dir" ]; then
+    cp "$tmp" "$dest" && wrote=1
+  elif sudo -n true 2>/dev/null; then
+    sud cp "$tmp" "$dest" && wrote=1
+  fi
+  rm -f "$tmp"
+  [ "$wrote" = "1" ] && return 0
+  warn "sin permisos en $dest — omitido (aplica con sudo y repite: omakux theme set $NAME)"
+  return 1
 }
 
-render "$OMAKUX_PATH/config-themes/alacritty/alacritty.toml" "$HOME/.config/alacritty/alacritty.toml"
-render "$OMAKUX_PATH/config-themes/waybar/style.css" "$HOME/.config/waybar/style.css"
-render "$OMAKUX_PATH/config-themes/wofi/style.css" "$HOME/.config/wofi/style.css"
-render "$OMAKUX_PATH/config-themes/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
-render "$OMAKUX_PATH/config-themes/hypr/colors.conf" "$HOME/.config/hypr/colors.conf"
-render "$OMAKUX_PATH/config-themes/dunst/dunst.conf" "$HOME/.config/dunst/dunst.conf"
-render "$OMAKUX_PATH/config-themes/starship/starship.toml" "$HOME/.config/starship.toml"
-render "$OMAKUX_PATH/config-themes/tmux/colors.conf" "$HOME/.config/tmux/colors.conf"
-render "$OMAKUX_PATH/config-themes/btop/omakux.theme" "$HOME/.config/btop/themes/omakux.theme"
+MANIFEST="${OMAKUX_MANIFEST:-$OMAKUX_PATH/config-themes/manifest}"
+rendered=0
+omitted=0
+if [ -f "$MANIFEST" ]; then
+  while read -r src dest req; do
+    case "$src" in "" | \#*) continue ;; esac
+    dest_path="${dest/#\~/$HOME}"
+    if ! req_ok "${req:--}" "$dest_path"; then
+      omitted=$((omitted + 1))
+      continue
+    fi
+    if render "$OMAKUX_PATH/config-themes/$src" "$dest_path"; then
+      rendered=$((rendered + 1))
+    else
+      omitted=$((omitted + 1))
+    fi
+  done <"$MANIFEST"
+else
+  warn "manifest no encontrado: $MANIFEST"
+fi
+
+# ─── 4. integraciones que no son un render simple ──────────────────
 
 # nvim colorscheme (LazyVim)
 if [ -n "${nvim_theme:-}" ] && [ -n "${nvim_plugin:-}" ]; then
@@ -128,9 +207,9 @@ LUA
   fi
 fi
 
-# VSCode: fusionar workbench.colorCustomizations
+# VSCode: fusionar workbench.colorCustomizations + token colors
 render "$OMAKUX_PATH/config-themes/vscode/settings.json" "$OMAKUX_STATE/vscode-settings.json"
-if [ -f "$OMAKUX_STATE/vscode-settings.json" ] && [ "$OMAKUX_DRY" != "1" ]; then
+if [ -f "$OMAKUX_STATE/vscode-settings.json" ] && [ "$OMAKUX_DRY" != "1" ] && has jq; then
   # JSONC → quitar líneas de comentario antes del merge con jq
   vs_clean="$OMAKUX_STATE/vscode-settings.clean.json"
   sed 's|^[[:space:]]*//.*||' "$OMAKUX_STATE/vscode-settings.json" >"$vs_clean"
@@ -153,8 +232,29 @@ if [ -f "$OMAKUX_STATE/vscode-settings.json" ] && [ "$OMAKUX_DRY" != "1" ]; then
   done
 fi
 
+# Discord: solo el selector claro/oscuro (la paleta se la queda el SO)
+discord_file="$HOME/.config/discord/settings.json"
+if [ -d "$HOME/.config/discord" ] && [ "$OMAKUX_DRY" != "1" ] && has jq; then
+  tmp_discord="$(mktemp)"
+  sed 's|^[[:space:]]*//.*||' "$OMAKUX_PATH/config-themes/discord/settings.json" |
+    sed "s|{{discord_theme}}|$discord_theme|g" >"$tmp_discord"
+  if [ -f "$discord_file" ] && jq -e . "$discord_file" >/dev/null 2>&1; then
+    backup_file "$discord_file"
+    if jq -s '.[0] * .[1]' "$discord_file" "$tmp_discord" >"$discord_file.tmp" 2>/dev/null; then
+      mv "$discord_file.tmp" "$discord_file"
+      ok "discord: tema $discord_theme"
+    else
+      rm -f "$discord_file.tmp"
+      warn "no se pudo fusionar settings de discord"
+    fi
+  elif [ ! -f "$discord_file" ]; then
+    cp "$tmp_discord" "$discord_file"
+  fi
+  rm -f "$tmp_discord"
+fi
+
 # btop
-if [ "$OMAKUX_DRY" != "1" ]; then
+if [ "$OMAKUX_DRY" != "1" ] && has btop; then
   btop_conf="$HOME/.config/btop/btop.conf"
   mkdir -p "$HOME/.config/btop/themes"
   if [ -f "$btop_conf" ]; then
@@ -166,11 +266,14 @@ if [ "$OMAKUX_DRY" != "1" ]; then
   fi
 fi
 
-# ─── 4. GNOME ──────────────────────────────────────────────────────
+# ─── 5. GNOME ──────────────────────────────────────────────────────
 if command -v gsettings >/dev/null 2>&1 && [ "$OMAKUX_DRY" != "1" ]; then
-  gsettings set org.gnome.desktop.interface color-scheme "'${gnome_scheme:-prefer-dark}'" 2>/dev/null || true
-  gsettings set org.gnome.desktop.interface gtk-theme "'${gtk_theme:-Adwaita-dark}'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface color-scheme "'$gnome_scheme'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface gtk-theme "'$gtk_theme'" 2>/dev/null || true
   gsettings set org.gnome.desktop.interface accent-color "'${gnome_accent:-blue}'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface icon-theme "'$icon_theme'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface cursor-theme "'$cursor_theme'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface font-name "'$ui_font'" 2>/dev/null || true
   if [ -f "$ACTIVE_WALL" ]; then
     gsettings set org.gnome.desktop.background picture-uri "'file://$ACTIVE_WALL'" 2>/dev/null || true
     gsettings set org.gnome.desktop.background picture-uri-dark "'file://$ACTIVE_WALL'" 2>/dev/null || true
@@ -178,7 +281,7 @@ if command -v gsettings >/dev/null 2>&1 && [ "$OMAKUX_DRY" != "1" ]; then
   fi
 fi
 
-# ─── 5. estado + recargas en caliente ──────────────────────────────
+# ─── 6. estado + recargas en caliente ──────────────────────────────
 if [ "$OMAKUX_DRY" != "1" ]; then
   echo "$NAME" >"$OMAKUX_STATE/theme"
   if [ -f "$ACTIVE_WALL" ]; then
@@ -205,4 +308,4 @@ fi
 command -v notify-send >/dev/null 2>&1 &&
   notify-send -u low -h string:x-canonical-private-synchronous:theme "Tema omakux" "Aplicado: $NAME" 2>/dev/null || true
 
-ok "tema '$NAME' aplicado (GNOME, terminal, waybar, wofi, hyprlock, dunst, tmux, starship, btop, nvim, vscode)"
+ok "tema '$NAME' aplicado — manifest: $rendered renderizados, $omitted omitidos (GNOME, gtk, gdm, vscode, discord, terminal, barra, nvim)"

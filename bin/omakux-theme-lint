@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# omakux:summary Validate a theme palette without applying it: omakux theme lint [name]
+# omakux:group theme
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+NAME="${1:-$(cat "$OMAKUX_STATE/theme" 2>/dev/null || echo tokyonight)}"
+THEME_DIR="$OMAKUX_PATH/themes/$NAME"
+
+errors=0
+warnings=0
+bad() { errors=$((errors + 1)); printf '  %s✗%s %s\n' "$_c_red" "$_c_reset" "$*" >&2; }
+note() { warnings=$((warnings + 1)); printf '  %s!%s %s\n' "$_c_yellow" "$_c_reset" "$*"; }
+fine() { printf '  %s✓%s %s\n' "$_c_green" "$_c_reset" "$*"; }
+
+echo
+echo "omakux theme lint — $NAME"
+echo "────────────────────────────"
+
+if [ ! -d "$THEME_DIR" ]; then
+  bad "tema no existe: $THEME_DIR"
+  echo "────────────────────────────"
+  echo "$errors error(es)"
+  exit 1
+fi
+
+if [ ! -f "$THEME_DIR/colors.sh" ]; then
+  bad "falta colors.sh"
+else
+  # shellcheck disable=SC1090
+  source "$THEME_DIR/colors.sh"
+
+  required="bg fg surface accent muted red green yellow blue magenta cyan orange"
+  missing=""
+  for k in $required; do
+    eval "val=\${color_$k:-}"
+    [ -n "$val" ] || missing="$missing color_$k"
+  done
+  if [ -n "$missing" ]; then
+    bad "colores obligatorios ausentes:$missing"
+  else
+    fine "paleta mínima completa (12 colores)"
+  fi
+
+  # todos los color_* deben ser #rrggbb (el motor les deriva _rgb y alfas)
+  bad_format=""
+  for v in $(compgen -A variable | grep '^color_'); do
+    eval "val=\${!v}"
+    case "$val" in
+      \#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
+      *) bad_format="$bad_format $v=$val" ;;
+    esac
+  done
+  if [ -n "$bad_format" ]; then
+    bad "valores que no son #rrggbb:$bad_format"
+  else
+    fine "todos los colores son #rrggbb"
+  fi
+
+  # wallpaper
+  if [ ! -f "$THEME_DIR/wallpaper.svg" ]; then
+    note "sin wallpaper.svg (se usará el último renderizado)"
+  elif ! grep -q '<svg' "$THEME_DIR/wallpaper.svg"; then
+    bad "wallpaper.svg no contiene <svg"
+  else
+    fine "wallpaper.svg presente"
+  fi
+
+  # valores conocidos de gsettings (si están mal, gsettings los ignora en silencio)
+  case "${gnome_scheme:-prefer-dark}" in
+    prefer-dark | prefer-light | default) fine "gnome_scheme=${gnome_scheme:-prefer-dark}" ;;
+    *) bad "gnome_scheme inválido: '${gnome_scheme}' (prefer-dark|prefer-light|default)" ;;
+  esac
+  case "${gnome_accent:-blue}" in
+    blue | teal | green | yellow | orange | red | purple | pink | slate)
+      fine "gnome_accent=${gnome_accent:-blue}" ;;
+    *) bad "gnome_accent inválido: '${gnome_accent}' (blue|teal|green|yellow|orange|red|purple|pink|slate)" ;;
+  esac
+
+  # integraciones opcionales: si declaras una, declara las dos
+  if [ -n "${nvim_plugin:-}" ] && [ -z "${nvim_theme:-}" ]; then
+    note "nvim_plugin sin nvim_theme (no se generará el colorscheme)"
+  elif [ -z "${nvim_plugin:-}" ] && [ -n "${nvim_theme:-}" ]; then
+    note "nvim_theme sin nvim_plugin"
+  else
+    fine "nvim: ${nvim_theme:-—}"
+  fi
+  [ -n "${vscode_theme:-}" ] || note "sin vscode_theme (quedará el valor por defecto)"
+
+  # el tema apunta a algo que no está instalado
+  for pair in "gtk_theme:/usr/share/themes" "icon_theme:/usr/share/icons" "cursor_theme:/usr/share/icons"; do
+    var="${pair%%:*}"
+    base="${pair#*:}"
+    eval "val=\${$var:-}"
+    [ -n "$val" ] || continue
+    if [ ! -d "$base/$val" ] && [ ! -d "$HOME/.local/share/$var/$val" ] && [ ! -d "$HOME/.icons/$val" ]; then
+      note "$var='$val' no está instalado en $base (se ignorará)"
+    fi
+  done
+fi
+
+echo "────────────────────────────"
+if [ "$errors" -gt 0 ]; then
+  printf '%s%d error(es)%s, %d aviso(s)\n' "$_c_red" "$errors" "$_c_reset" "$warnings"
+  exit 1
+elif [ "$warnings" -gt 0 ]; then
+  printf '0 errores, %d aviso(s)\n' "$warnings"
+else
+  ok "tema '$NAME' válido"
+fi
