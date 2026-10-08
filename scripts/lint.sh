@@ -6,18 +6,23 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# solo scripts reales: todo .sh + la CLI (bin/omakux*).
-# config-themes/btop/ no es bash (formato de btop) → se excluye.
-mapfile -t files < <(
-  find "$ROOT" \
-    \( -path "$ROOT/.git" -o -path "$ROOT/config-themes/btop" \) -prune -o \
-    -type f \( -name '*.sh' -o -path "$ROOT/bin/omakux*" \) -print | sort
-)
-
 if ! command -v shellcheck >/dev/null 2>&1; then
   echo "shellcheck no está instalado: omakux pkg install shellcheck" >&2
   exit 1
 fi
+
+# el análisis resuelve los `source` (install/lib.sh) contra los archivos de la
+# lista, pero solo si los caminos son relativos a la raíz del repo. Por eso
+# se hace cd: el lint no debe depender de desde dónde lo lances.
+cd "$ROOT"
+
+# solo scripts reales: todo .sh + la CLI (bin/omakux*).
+# config-themes/btop/ no es bash (formato de btop) → se excluye.
+mapfile -t files < <(
+  find . \
+    \( -path ./.git -o -path ./config-themes/btop \) -prune -o \
+    -type f \( -name '*.sh' -o -path './bin/omakux*' \) -print | sort
+)
 
 echo "shellcheck: ${#files[@]} archivos"
 shellcheck "${files[@]}"
