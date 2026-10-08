@@ -1,0 +1,33 @@
+# omakux — yazi config
+[manager]
+ratio = [1, 3, 3]
+sort_by = "modified"
+sort_reverse = true
+sort_sensitive = false
+linemode = "size"
+show_hidden = false
+show_filtered = false
+
+[preview]
+max_width = 600
+max_height = 900
+cache_dir = "cache"
+image_delay = 0
+
+[input]
+cd_title = "ir a:"
+create_title = "crear [nombre]:"
+rename_title = "renombrar a:"
+search_title = "buscar en:"
+search_via_title = "buscar en (via):"
+shell_title = ":"
+
+[open]
+rules = [
+  { name = "*/", use = "open" },
+  { mime = "text/*", use = "open" },
+  { mime = "image/*", use = "open" },
+  { mime = "video/*", use = "open" },
+  { mime = "application/json", use = "open" },
+  { mime = "*", use = "open" },
+]

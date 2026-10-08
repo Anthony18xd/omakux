@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck bats
+
+      - name: shellcheck + tests
+        run: scripts/test.sh
+
+      - name: instalador en dry-run
+        run: OMAKUX_DRY=1 bash install.sh --dry-run --only check
+
+      - name: help de la CLI
+        run: |
+          bin/omakux --version
+          bin/omakux | tee /tmp/help.txt
+          grep -q "THEME" /tmp/help.txt
+          grep -q "docs:" /tmp/help.txt
+
+      - name: ayuda del instalador
+        run: bash install.sh --help

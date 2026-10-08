@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# omakux:summary Update system + omakux: omakux update
+# omakux:group system
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+confirm_sudo
+
+# 1. snapshot antes de tocar nada
+if has timeshift && [ -f /etc/timeshift/timeshift.json ]; then
+  log "snapshot previo (timeshift)"
+  sud timeshift --create --yes --comments "omakux update $(date +%F)" >/dev/null 2>&1 ||
+    warn "el snapshot previo falló; continúo"
+fi
+
+# 2. paquetes
+log "apt update + upgrade"
+sud apt-get update -qq
+DEBIAN_FRONTEND=noninteractive sud apt-get upgrade -y -qq
+
+# 3. flatpak + snap
+if has flatpak; then
+  log "flatpak update"
+  sud flatpak update -y >/dev/null 2>&1 || warn "flatpak update falló"
+fi
+if has snap; then
+  log "snap refresh"
+  sud snap refresh >/dev/null 2>&1 || warn "snap refresh falló"
+fi
+
+# 4. omakux (git)
+if [ -d "$OMAKUX_PATH/.git" ]; then
+  log "actualizando omakux (git pull)"
+  git -C "$OMAKUX_PATH" pull --ff-only >/dev/null 2>&1 || warn "git pull falló (¿cambios locales?)"
+elif [ "$OMAKUX_PATH" = "$HOME/.local/share/omakux" ]; then
+  warn "omakux no es un repo git; actualízalo manualmente"
+fi
+
+# 5. reaplicar configuraciones y tema
+log "reaplicando configuraciones"
+OMAKUX_YES=1 bash "$OMAKUX_PATH/install.sh" --force --skip identification --skip packages --skip apps --skip ai
+
+# 6. runtimes de mise + plugins de nvim
+if [ -x "$HOME/.local/bin/mise" ]; then
+  "$HOME/.local/bin/mise" upgrade >/dev/null 2>&1 || true
+fi
+if has nvim && [ -d "$HOME/.config/nvim" ]; then
+  nvim --headless "+Lazy! sync" +qa >/dev/null 2>&1 || true
+fi
+
+ok "actualización completada"

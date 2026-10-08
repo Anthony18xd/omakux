@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# omakux:summary Remove a web app: omakux webapp remove <slug>
+# omakux:group webapp
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+slug="${1:-}"
+[ -n "$slug" ] || { echo "uso: omakux webapp remove <slug>   (lista: omakux webapp list)" >&2; exit 1; }
+
+desktop="$HOME/.local/share/applications/omakux-$slug.desktop"
+[ -f "$desktop" ] || die "no existe: $slug (omakux webapp list)"
+
+rm -f "$desktop"
+rm -f "$OMAKUX_STATE/webapp-icons/$slug".{png,fav,svg} 2>/dev/null || true
+has update-desktop-database && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+ok "web app eliminada: $slug"

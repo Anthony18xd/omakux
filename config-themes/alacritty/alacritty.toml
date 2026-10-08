@@ -1,0 +1,58 @@
+# omakux — alacritty (GENERADO: omakux theme set <nombre>)
+[general]
+live_config_reload = true
+
+[window]
+padding = { x = 12, y = 12 }
+dynamic_padding = true
+option_as_alt = "Both"
+
+[scrolling]
+history = 20000
+
+[font]
+size = 12.5
+
+[font.normal]
+family = "JetBrains Mono"
+
+[font.bold]
+family = "JetBrains Mono"
+
+[font.italic]
+family = "JetBrains Mono"
+
+[font.bold_italic]
+family = "JetBrains Mono"
+
+[colors.primary]
+background = "{{color_bg}}"
+foreground = "{{color_fg}}"
+
+[colors.cursor]
+text = "{{color_bg}}"
+cursor = "{{color_accent}}"
+
+[colors.selection]
+text = "{{color_bg}}"
+background = "{{color_selection}}"
+
+[colors.normal]
+black = "{{color_black}}"
+red = "{{color_red}}"
+green = "{{color_green}}"
+yellow = "{{color_yellow}}"
+blue = "{{color_blue}}"
+magenta = "{{color_magenta}}"
+cyan = "{{color_cyan}}"
+white = "{{color_fg}}"
+
+[colors.bright]
+black = "{{color_muted}}"
+red = "{{color_red}}"
+green = "{{color_green}}"
+yellow = "{{color_yellow}}"
+blue = "{{color_blue}}"
+magenta = "{{color_magenta}}"
+cyan = "{{color_cyan}}"
+white = "{{color_fg}}"

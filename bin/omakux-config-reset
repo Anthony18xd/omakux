@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# omakux:summary Reset omakux configs to shipped defaults (backs up your edits)
+# omakux:group config
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+if command -v gum >/dev/null 2>&1 && [ -t 0 ]; then
+  gum confirm "¿Reaplicar configs y tema del repo? (tus edits se respaldan)" || exit 0
+else
+  printf 'Esto reaplica las configs del repo (backup en %s/backup). ¿Continuar? [s/N] ' "$OMAKUX_STATE"
+  read -r ans
+  case "$ans" in s | S | si | sí) ;; *) exit 0 ;; esac
+fi
+
+OMAKUX_YES=1 bash "$OMAKUX_PATH/install.sh" --force --skip packages --skip apps --skip ai
+ok "configs y tema reaplicados (backup en $OMAKUX_STATE/backup)"

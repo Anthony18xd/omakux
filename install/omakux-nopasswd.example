@@ -1,0 +1,17 @@
+# EJEMPLO — omakux sin pedir contraseña
+#
+# POR DEFECTO omakux NO instala esto: pide la contraseña una vez por sesión
+# (sudo -v en confirm_sudo) y sudo la cachea durante unos minutos.
+#
+# Riesgo de instalarlo: cualquier proceso que se ejecute como tu usuario
+# (un script descargado, un plugin, un agente de IA) podrá hacer TODO como
+# root sin más preguntas. Solo tiene sentido en una máquina desatendida.
+#
+# Instalación (a conciencia):
+#   sudo install -m 0440 install/omakux-nopasswd.example /etc/sudoers.d/omakux-nopasswd
+#   sudo visudo -c          # valida la sintaxis
+#
+# Desinstalación:
+#   sudo rm -f /etc/sudoers.d/omakux-nopasswd
+#
+anthony ALL=(ALL) NOPASSWD:ALL

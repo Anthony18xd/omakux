@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# omakux:summary Delete a snapshot: omakux snapshot delete <número|todas>
+# omakux:group system
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+command -v timeshift >/dev/null 2>&1 || die "timeshift no instalado"
+confirm_sudo
+
+target="${1:-}"
+if [ -z "$target" ]; then
+  sudo timeshift --list
+  echo "uso: omakux snapshot delete <número de snapshot>"
+  exit 1
+fi
+if [ "$target" = "todas" ]; then
+  sud timeshift --delete-all --yes
+else
+  sud timeshift --delete --snapshot "${target}" --yes
+fi
+ok "borrado completado"

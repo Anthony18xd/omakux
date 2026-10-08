@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# omakux:summary List available themes (mark the active one)
+# omakux:group theme
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+active="$(cat "$OMAKUX_STATE/theme" 2>/dev/null || echo "")"
+
+found=0
+for d in "$OMAKUX_PATH"/themes/*/; do
+  [ -f "$d/colors.sh" ] || continue
+  found=1
+  name="$(basename "$d")"
+  desc="$(grep -m1 '^# ' "$d/colors.sh" 2>/dev/null | sed 's/^# //' || true)"
+  if [ "$name" = "$active" ]; then
+    printf '  %s● %s%s  %s\n' "$_c_green" "$name" "$_c_reset" "$desc"
+  else
+    printf '    %s  %s\n' "$name" "$desc"
+  fi
+done
+[ "$found" = "1" ] || echo "(sin temas — omakux theme install <url>)"
+echo
+echo "aplicar: omakux theme set <nombre>"

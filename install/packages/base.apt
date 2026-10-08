@@ -1,0 +1,27 @@
+# base — utilidades imprescindibles del sistema
+ca-certificates
+curl
+wget
+git
+unzip
+zip
+tar
+jq
+gum
+gnupg
+lsb-release
+software-properties-common
+apt-transport-https
+build-essential
+pkg-config
+libssl-dev
+gettext
+xdg-utils
+xdg-user-dirs
+shared-mime-info
+dbus-x11
+imagemagick
+gnome-software
+flatpak
+gnome-software-plugin-flatpak
+wl-clipboard

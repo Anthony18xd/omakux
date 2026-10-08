@@ -1,0 +1,5 @@
+# shellcheckrc — configuración global de shellcheck para omakux
+# ver: scripts/lint.sh
+shell=bash
+# las fuentes son dinámicas ($OMAKUX_PATH/...): imposible seguirlas en estático
+disable=SC1091

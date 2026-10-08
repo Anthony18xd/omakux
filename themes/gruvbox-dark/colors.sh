@@ -1,0 +1,27 @@
+# gruvbox-dark — tierra retro: ámbar, oliva y naranja cálido
+# shellcheck disable=SC2034
+# ^ las variables las consume omakux-theme-set al hacer source de este archivo
+color_bg="#1d2021"
+color_fg="#ebdbb2"
+color_bg_alt="#282828"
+color_surface="#32302f"
+color_muted="#7c6f64"
+color_border="#3c3836"
+color_accent="#fe8019"
+color_selection="#504945"
+color_red="#fb4934"
+color_green="#b8bb26"
+color_yellow="#fabd2f"
+color_blue="#83a598"
+color_magenta="#d3869b"
+color_cyan="#8ec07c"
+color_orange="#fe8019"
+color_black="#1d2021"
+color_shadow="#000000"
+
+vscode_theme="Gruvbox Dark Hard"
+nvim_plugin="ellisonleao/gruvbox.nvim"
+nvim_theme="gruvbox-dark"
+gnome_accent="orange"
+gnome_scheme="prefer-dark"
+gtk_theme="Adwaita-dark"

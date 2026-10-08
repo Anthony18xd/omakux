@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# omakux:summary Install an AI tool: omakux ai install <claude|codex|ollama|voxtype|all>
+# omakux:group ai
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+
+what="${1:-}"
+
+install_claude() {
+  command -v npm >/dev/null 2>&1 || { warn "npm (mise) necesario para claude"; return; }
+  if command -v claude >/dev/null 2>&1; then
+    ok "claude ya instalado ($(claude --version 2>/dev/null | head -1))"
+    return
+  fi
+  log "instalando Claude Code (npm -g)"
+  run npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || warn "fallo claude-code"
+  has claude && ok "claude listo — ejecuta 'claude' para empezar"
+}
+
+install_codex() {
+  command -v npm >/dev/null 2>&1 || { warn "npm (mise) necesario para codex"; return; }
+  if command -v codex >/dev/null 2>&1; then
+    ok "codex ya instalado"
+    return
+  fi
+  log "instalando Codex CLI (npm -g)"
+  run npm install -g @openai/codex >/dev/null 2>&1 || warn "fallo codex"
+  has codex && ok "codex listo"
+}
+
+install_ollama() {
+  if command -v ollama >/dev/null 2>&1; then
+    ok "ollama ya instalado"
+    return
+  fi
+  log "instalando ollama"
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    log "DRY curl -fsSL https://ollama.com/install.sh | sh"
+    return
+  fi
+  curl -fsSL -m 30 https://ollama.com/install.sh | sh >/dev/null 2>&1 ||
+    warn "fallo ollama"
+  has ollama && ok "ollama listo — 'ollama pull llama3.2' para bajar un modelo"
+}
+
+install_voxtype() {
+  # dictado por voz local (faster-whisper) + copia al portapapeles
+  venv="$OMAKUX_STATE/venvs/voxtype"
+  wrapper="$HOME/.local/bin/voxtype"
+  if [ -x "$wrapper" ]; then
+    ok "voxtype ya instalado"
+    return
+  fi
+  log "instalando voxtype (faster-whisper, modelo local)"
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    log "DRY python venv + pip install faster-whisper + wrapper"
+    return
+  fi
+  apt_install ffmpeg
+  py=""
+  for c in "$HOME/.local/share/mise/shims/python3" python3; do
+    command -v "$c" >/dev/null 2>&1 && { py="$c"; break; }
+  done
+  [ -n "$py" ] || { warn "python3 no disponible"; return; }
+  "$py" -m venv "$venv" || { warn "fallo crear venv"; return; }
+  "$venv/bin/pip" install -q --upgrade pip faster-whisper >/dev/null 2>&1 ||
+    warn "fallo instalar faster-whisper"
+  mkdir -p "$HOME/.local/bin"
+  cat >"$wrapper" <<EOF
+#!/usr/bin/env bash
+# omakux voxtype — dictado local: voxtype [segundos]
+set -euo pipefail
+secs="\${1:-10}"
+venv="$venv"
+out="\$(mktemp -t voxtype.XXXXXX).wav"
+echo "grabando \$secs s… (micrófono)" >&2
+ffmpeg -loglevel error -f pulse -i default -t "\$secs" -ac 1 "\$out" -y
+txt="\$("\$venv/bin/python" - "\$out" <<'PY'
+import sys
+from faster_whisper import WhisperModel
+model = WhisperModel("small", device="cpu", compute_type="int8")
+segments, _ = model.transcribe(sys.argv[1], language=None)
+print(" ".join(s.text.strip() for s in segments).strip())
+PY
+)"
+rm -f "\$out"
+[ -n "\$txt" ] || { echo "(sin voz)" >&2; exit 1; }
+printf '%s' "\$txt"
+if command -v wl-copy >/dev/null 2>&1; then printf '%s' "\$txt" | wl-copy; fi
+echo >&2
+echo "\$txt" >&2
+EOF
+  chmod +x "$wrapper"
+  ok "voxtype listo — 'voxtype 10' graba 10 s, transcribe y copia"
+}
+
+case "$what" in
+  claude) install_claude ;;
+  codex) install_codex ;;
+  ollama) install_ollama ;;
+  voxtype) install_voxtype ;;
+  all | "")
+    install_claude
+    install_codex
+    install_ollama
+    ;;
+  *)
+    echo "uso: omakux ai install <claude|codex|ollama|voxtype|all>" >&2
+    exit 1
+    ;;
+esac

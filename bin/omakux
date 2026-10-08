@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# omakux:summary Show this help (router entry point)
+# omakux:group omakux
+
+# resolver symlinks (el router suele estar enlazado en /usr/local/bin)
+OMAKUX_SRC="${BASH_SOURCE[0]}"
+while [ -L "$OMAKUX_SRC" ]; do
+  OMAKUX_DIR="$(cd "$(dirname "$OMAKUX_SRC")" && pwd)"
+  OMAKUX_SRC="$(readlink "$OMAKUX_SRC")"
+  case "$OMAKUX_SRC" in /*) ;; *) OMAKUX_SRC="$OMAKUX_DIR/$OMAKUX_SRC" ;; esac
+done
+OMAKUX_BIN="$(cd "$(dirname "$OMAKUX_SRC")" && pwd)"
+export OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+
+omakux_summary() {
+  awk 'NR > 80 { exit } /^# omakux:summary[: ]/ {
+    sub(/^# omakux:summary:[[:space:]]*/, "")
+    sub(/^# omakux:summary[[:space:]]+/, "")
+    print
+    exit
+  }' "$1"
+}
+
+omakux_group() {
+  awk 'NR > 80 { exit } /^# omakux:group[: ]/ {
+    sub(/^# omakux:group:[[:space:]]*/, "")
+    sub(/^# omakux:group[[:space:]]+/, "")
+    print
+    exit
+  }' "$1"
+}
+
+omakux_list() {
+  local version
+  version="$(cat "$OMAKUX_PATH/version" 2>/dev/null || echo "?")"
+  echo "omakux $version — opinionated Ubuntu workstation"
+  echo
+  echo "usage: omakux <command> [args]"
+  echo
+  local f name group summary
+  for f in "$OMAKUX_BIN"/omakux-*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    case "$name" in
+      *.md | *.bak | *~) continue ;;
+    esac
+    if grep -q '^# omakux:hidden' "$f" 2>/dev/null; then continue; fi
+    group="$(omakux_group "$f")"
+    summary="$(omakux_summary "$f")"
+    printf '%s\t%-24s %s\n' "${group:-general}" "${name#omakux-}" "$summary"
+  done | sort -k1,1 -k2,2 | awk -F'\t' '
+    $1 != prev { if (NR > 1) print ""; printf "%s\n", toupper($1); prev = $1 }
+    { printf "  %s%s\n", $2, $3 }
+  '
+  echo
+  echo "docs: $OMAKUX_PATH/README.md"
+}
+
+[ $# -eq 0 ] && { omakux_list; exit 0; }
+
+case "$1" in
+  -h | --help | help)
+    omakux_list
+    exit 0
+    ;;
+  --version | version)
+    cat "$OMAKUX_PATH/version"
+    exit 0
+    ;;
+esac
+
+args=("$@")
+n=${#args[@]}
+while [ "$n" -ge 1 ]; do
+  name="$(IFS=-; echo "${args[*]:0:n}")"
+  script="$OMAKUX_BIN/omakux-$name"
+  if [ -f "$script" ]; then
+    [ -x "$script" ] || chmod +x "$script"
+    shift_args=("${args[@]:n}")
+    exec "$script" ${shift_args[@]+"${shift_args[@]}"}
+  fi
+  n=$((n - 1))
+done
+
+echo "omakux: comando desconocido: $*" >&2
+echo "Ejecuta 'omakux' para ver la lista de comandos." >&2
+exit 1

@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# omakux:summary Open the omakux menu (wofi en Hyprland, gum en GNOME)
+# omakux:group omakux
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+
+pick() { # pick <prompt> <opciones...>
+  local prompt="$1"
+  shift
+  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v wofi >/dev/null 2>&1; then
+    printf '%s\n' "$@" | wofi -dmenu -p "$prompt" --insensitive
+  elif command -v gum >/dev/null 2>&1; then
+    gum choose --header="$prompt" "$@"
+  else
+    i=1
+    for o in "$@"; do
+      printf '%s) %s\n' "$i" "$o" >&2
+      i=$((i + 1))
+    done
+    printf 'elige un número: ' >&2
+    read -r n
+    i=1
+    for o in "$@"; do
+      if [ "$i" = "$n" ]; then
+        echo "$o"
+        return 0
+      fi
+      i=$((i + 1))
+    done
+    return 1
+  fi
+}
+
+show_menu() {
+  local choice
+  choice="$(pick "omakux" \
+    "🔄  Actualizar sistema" \
+    "🎨  Cambiar tema" \
+    "📦  Instalar aplicación" \
+    "🌐  Nueva web app" \
+    "📸  Captura de pantalla" \
+    "🔒  Bloquear" \
+    "🔄  Reiniciar" \
+    "⏻  Apagar" \
+    "🩺  Doctor" \
+    "❌  Salir")" || exit 0
+
+  case "$choice" in
+    *Actualizar*)
+      exec "$OMAKUX_BIN/omakux-update"
+      ;;
+    *Cambiar\ tema*)
+      local themes=() t active
+      active="$(cat "$OMAKUX_STATE/theme" 2>/dev/null || true)"
+      for d in "$OMAKUX_PATH"/themes/*/; do
+        [ -f "$d/colors.sh" ] && themes+=("$(basename "$d")")
+      done
+      [ ${#themes[@]} -gt 0 ] || { gum format "sin temas instalados" 2>/dev/null || echo "sin temas"; exit 1; }
+      t="$(pick "tema (activo: ${active:-ninguno})" "${themes[@]}")" || exit 0
+      [ -n "$t" ] || exit 0
+      exec "$OMAKUX_BIN/omakux-theme-set" "$t"
+      ;;
+    *Instalar\ aplicación*)
+      local apps=() f name
+      for f in "$OMAKUX_PATH"/applications/install/*.sh; do
+        [ -f "$f" ] || continue
+        name="$(basename "$f" .sh)"
+        apps+=("${name#app-}")
+      done
+      [ ${#apps[@]} -gt 0 ] || { echo "sin apps en applications/install/"; exit 1; }
+      local sel
+      sel="$(pick "instalar" "${apps[@]}")" || exit 0
+      [ -n "$sel" ] || exit 0
+      bash "$OMAKUX_PATH/applications/install/app-$sel.sh"
+      ;;
+    *web\ app*)
+      if command -v gum >/dev/null 2>&1; then
+        wname="$(gum input --prompt "nombre de la web app: ")" || exit 0
+        wurl="$(gum input --prompt "url: " --placeholder "https://...")" || exit 0
+        [ -n "$wname" ] && [ -n "$wurl" ] || exit 0
+        exec "$OMAKUX_BIN/omakux-webapp-add" "$wname" "$wurl"
+      fi
+      echo "uso: omakux webapp add <nombre> <url>"
+      exit 0
+      ;;
+    *Captura*)
+      exec "$OMAKUX_BIN/omakux-capture-screenshot" area
+      ;;
+    *Bloquear*)
+      if command -v hyprlock >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+        exec hyprlock
+      fi
+      loginctl lock-session
+      ;;
+    *Reiniciar*) exec systemctl reboot ;;
+    *Apagar*) exec systemctl poweroff ;;
+    *Doctor*) exec "$OMAKUX_BIN/omakux-doctor" ;;
+    *) exit 0 ;;
+  esac
+}
+
+show_menu

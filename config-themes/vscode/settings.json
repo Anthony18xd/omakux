@@ -1,0 +1,37 @@
+{
+  // omakux — fragmento de VSCode (se fusiona en settings.json por omakux theme set)
+  "workbench.colorCustomizations": {
+    "editor.background": "{{color_bg}}",
+    "editor.foreground": "{{color_fg}}",
+    "activityBar.background": "{{color_surface}}",
+    "activityBar.foreground": "{{color_accent}}",
+    "sideBar.background": "{{color_bg_alt}}",
+    "sideBar.foreground": "{{color_fg}}",
+    "statusBar.background": "{{color_surface}}",
+    "statusBar.foreground": "{{color_fg}}",
+    "titleBar.activeBackground": "{{color_surface}}",
+    "titleBar.activeForeground": "{{color_fg}}",
+    "terminal.background": "{{color_bg}}",
+    "terminal.foreground": "{{color_fg}}",
+    "terminalCursor.foreground": "{{color_accent}}",
+    "focusBorder": "{{color_accent}}",
+    "selection.background": "{{color_selection}}",
+    "list.activeSelectionBackground": "{{color_accent}}",
+    "list.activeSelectionForeground": "{{color_bg}}",
+    "list.hoverBackground": "{{color_bg_alt}}",
+    "tab.activeBackground": "{{color_bg}}",
+    "tab.activeBorderTop": "{{color_accent}}",
+    "tab.inactiveBackground": "{{color_surface}}"
+  },
+  "editor.colorTheme": "{{vscode_theme}}",
+  "terminal.integrated.fontFamily": "JetBrains Mono",
+  "terminal.integrated.fontSize": 13,
+  "editor.fontFamily": "JetBrains Mono",
+  "editor.fontSize": 14,
+  "editor.fontLigatures": true,
+  "workbench.startupEditor": "none",
+  "window.titleBarStyle": "custom",
+  "files.autoSave": "onFocusChange",
+  "editor.formatOnSave": true,
+  "explorer.confirmDelete": false
+}

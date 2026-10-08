@@ -1,0 +1,9 @@
+# system — snapshots, firewall y utilidades de sistema
+timeshift
+ufw
+unattended-upgrades
+powertop
+lm-sensors
+htop
+ncdu
+iotop

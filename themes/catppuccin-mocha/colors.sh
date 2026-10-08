@@ -1,0 +1,27 @@
+# catppuccin-mocha — pastel crema y lavanda (suave, legible)
+# shellcheck disable=SC2034
+# ^ las variables las consume omakux-theme-set al hacer source de este archivo
+color_bg="#1e1e2e"
+color_fg="#cdd6f4"
+color_bg_alt="#181825"
+color_surface="#313244"
+color_muted="#6c7086"
+color_border="#45475a"
+color_accent="#cba6f7"
+color_selection="#45475a"
+color_red="#f38ba8"
+color_green="#a6e3a1"
+color_yellow="#f9e2af"
+color_blue="#89b4fa"
+color_magenta="#cba6f7"
+color_cyan="#94e2d5"
+color_orange="#fab387"
+color_black="#11111b"
+color_shadow="#000000"
+
+vscode_theme="Catppuccin Mocha"
+nvim_plugin="catppuccin/nvim"
+nvim_theme="catppuccin-mocha"
+gnome_accent="purple"
+gnome_scheme="prefer-dark"
+gtk_theme="Adwaita-dark"

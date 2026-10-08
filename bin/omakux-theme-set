@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# omakux:summary Apply a theme everywhere: omakux theme set <name>
+# omakux:group theme
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+NAME="${1:-}"
+if [ -z "$NAME" ]; then
+  echo "uso: omakux theme set <nombre>   (lista: omakux theme list)" >&2
+  exit 1
+fi
+THEME_DIR="$OMAKUX_PATH/themes/$NAME"
+[ -f "$THEME_DIR/colors.sh" ] || die "tema no encontrado: $NAME (ver: omakux theme list)"
+
+log "aplicando tema: $NAME"
+
+# ─── 1. cargar paleta ──────────────────────────────────────────────
+# shellcheck disable=SC1090
+source "$THEME_DIR/colors.sh"
+
+required="bg fg surface accent muted red green yellow blue magenta cyan orange"
+for k in $required; do
+  eval "val=\${color_$k:-}"
+  [ -n "$val" ] || die "tema $NAME: falta color_$k en colors.sh"
+done
+
+# derivados (si el tema no los define)
+color_bg_alt="${color_bg_alt:-$color_surface}"
+color_border="${color_border:-$color_muted}"
+color_border_active="${color_border_active:-$color_accent}"
+color_selection="${color_selection:-$color_accent}"
+color_black="${color_black:-#0b0c0e}"
+color_shadow="${color_shadow:-#000000}"
+
+strip_hash() { printf '%s' "${1#\#}"; }
+
+declare -A VARS=()
+for v in $(compgen -A variable | grep '^color_'); do
+  val="${!v}"
+  VARS["$v"]="$val"
+  case "$val" in
+    \#??????) VARS["${v}_rgb"]="$(strip_hash "$val")" ;;
+  esac
+done
+VARS[color_shadow_a]="99$(strip_hash "$color_shadow")"
+VARS[color_muted_a]="cc$(strip_hash "$color_muted")"
+VARS[vscode_theme]="${vscode_theme:-Visual Studio Dark}"
+VARS[nvim_plugin]="${nvim_plugin:-}"
+VARS[nvim_theme]="${nvim_theme:-}"
+
+# ─── 2. wallpaper ──────────────────────────────────────────────────
+WALL_DIR="$OMAKUX_STATE/wallpapers"
+mkdir -p "$WALL_DIR"
+wall_src="$THEME_DIR/wallpaper.svg"
+wall_png="$WALL_DIR/$NAME.png"
+
+if [ "$OMAKUX_DRY" != "1" ]; then
+  if [ -f "$wall_src" ] && [ ! -f "$wall_png" ]; then
+    converter=""
+    command -v magick >/dev/null 2>&1 && converter="magick"
+    command -v convert >/dev/null 2>&1 && converter="convert"
+    if [ -n "$converter" ]; then
+      "$converter" -background none "$wall_src" -resize 1920x1080! "$wall_png" 2>/dev/null ||
+        warn "no se pudo rasterizar el wallpaper ($NAME)"
+    fi
+  fi
+  if [ -f "$wall_png" ]; then
+    ln -sfn "$wall_png" "$WALL_DIR/active.png"
+  elif [ -f "$wall_src" ]; then
+    # sin conversor: GNOME acepta SVG; hyprlock pedirá PNG (warn más abajo)
+    ln -sfn "$wall_src" "$WALL_DIR/active.svg"
+    warn "imagemagick ausente: wallpaper solo en GNOME (SVG)"
+  fi
+fi
+ACTIVE_WALL="$WALL_DIR/active.png"
+[ -f "$ACTIVE_WALL" ] || ACTIVE_WALL="$WALL_DIR/active.svg"
+
+# ─── 3. renderizar templates ───────────────────────────────────────
+render() {
+  local src="$1" dest="$2"
+  local args=() k
+  [ -f "$src" ] || { warn "template no encontrado: $src"; return 0; }
+  for k in "${!VARS[@]}"; do
+    args+=(-e "s|{{$k}}|${VARS[$k]}|g")
+  done
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    printf '%sDRY render %s -> %s%s\n' "$_c_dim" "$src" "$dest" "$_c_reset"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  sed "${args[@]}" "$src" >"$dest"
+}
+
+render "$OMAKUX_PATH/config-themes/alacritty/alacritty.toml" "$HOME/.config/alacritty/alacritty.toml"
+render "$OMAKUX_PATH/config-themes/waybar/style.css" "$HOME/.config/waybar/style.css"
+render "$OMAKUX_PATH/config-themes/wofi/style.css" "$HOME/.config/wofi/style.css"
+render "$OMAKUX_PATH/config-themes/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
+render "$OMAKUX_PATH/config-themes/hypr/colors.conf" "$HOME/.config/hypr/colors.conf"
+render "$OMAKUX_PATH/config-themes/dunst/dunst.conf" "$HOME/.config/dunst/dunst.conf"
+render "$OMAKUX_PATH/config-themes/starship/starship.toml" "$HOME/.config/starship.toml"
+render "$OMAKUX_PATH/config-themes/tmux/colors.conf" "$HOME/.config/tmux/colors.conf"
+render "$OMAKUX_PATH/config-themes/btop/omakux.theme" "$HOME/.config/btop/themes/omakux.theme"
+
+# nvim colorscheme (LazyVim)
+if [ -n "${nvim_theme:-}" ] && [ -n "${nvim_plugin:-}" ]; then
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    log "DRY nvim colorscheme -> $nvim_theme"
+  elif [ -d "$HOME/.config/nvim" ]; then
+    mkdir -p "$HOME/.config/nvim/lua/plugins"
+    cat >"$HOME/.config/nvim/lua/plugins/omakux-theme.lua" <<LUA
+-- generado por omakux theme set ($NAME)
+return {
+  {
+    "$nvim_plugin",
+    lazy = false,
+    priority = 1000,
+    config = function()
+      vim.cmd.colorscheme("$nvim_theme")
+    end,
+  },
+}
+LUA
+  fi
+fi
+
+# VSCode: fusionar workbench.colorCustomizations
+render "$OMAKUX_PATH/config-themes/vscode/settings.json" "$OMAKUX_STATE/vscode-settings.json"
+if [ -f "$OMAKUX_STATE/vscode-settings.json" ] && [ "$OMAKUX_DRY" != "1" ]; then
+  # JSONC → quitar líneas de comentario antes del merge con jq
+  vs_clean="$OMAKUX_STATE/vscode-settings.clean.json"
+  sed 's|^[[:space:]]*//.*||' "$OMAKUX_STATE/vscode-settings.json" >"$vs_clean"
+  for vsc in "$HOME/snap/code/current/.config/Code/User/settings.json" \
+    "$HOME/.config/Code/User/settings.json" \
+    "$HOME/.config/VSCodium/User/settings.json"; do
+    [ -f "$vsc" ] || continue
+    if jq -e . "$vsc" >/dev/null 2>&1; then
+      backup_file "$vsc"
+      if jq -s '.[0] * .[1]' "$vsc" "$vs_clean" >"$vsc.tmp" 2>/dev/null; then
+        mv "$vsc.tmp" "$vsc"
+        ok "vscode: $vsc"
+      else
+        rm -f "$vsc.tmp"
+        warn "no se pudo fusionar settings de vscode: $vsc"
+      fi
+    else
+      warn "vscode settings con comentarios (JSONC); no se fusionó: $vsc"
+    fi
+  done
+fi
+
+# btop
+if [ "$OMAKUX_DRY" != "1" ]; then
+  btop_conf="$HOME/.config/btop/btop.conf"
+  mkdir -p "$HOME/.config/btop/themes"
+  if [ -f "$btop_conf" ]; then
+    grep -q '^color_theme' "$btop_conf" &&
+      sed -i 's/^color_theme.*/color_theme="omakux"/' "$btop_conf" ||
+      echo 'color_theme="omakux"' >>"$btop_conf"
+  else
+    printf 'color_theme="omakux"\ntruecolor=True\n' >"$btop_conf"
+  fi
+fi
+
+# ─── 4. GNOME ──────────────────────────────────────────────────────
+if command -v gsettings >/dev/null 2>&1 && [ "$OMAKUX_DRY" != "1" ]; then
+  gsettings set org.gnome.desktop.interface color-scheme "'${gnome_scheme:-prefer-dark}'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface gtk-theme "'${gtk_theme:-Adwaita-dark}'" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface accent-color "'${gnome_accent:-blue}'" 2>/dev/null || true
+  if [ -f "$ACTIVE_WALL" ]; then
+    gsettings set org.gnome.desktop.background picture-uri "'file://$ACTIVE_WALL'" 2>/dev/null || true
+    gsettings set org.gnome.desktop.background picture-uri-dark "'file://$ACTIVE_WALL'" 2>/dev/null || true
+    gsettings set org.gnome.desktop.screensaver picture-uri "'file://$ACTIVE_WALL'" 2>/dev/null || true
+  fi
+fi
+
+# ─── 5. estado + recargas en caliente ──────────────────────────────
+if [ "$OMAKUX_DRY" != "1" ]; then
+  echo "$NAME" >"$OMAKUX_STATE/theme"
+  if [ -f "$ACTIVE_WALL" ]; then
+    readlink -f "$ACTIVE_WALL" >"$OMAKUX_STATE/wallpaper"
+  fi
+fi
+
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null 2>&1; then
+  hyprctl reload >/dev/null 2>&1 || true
+  if pgrep -x waybar >/dev/null 2>&1; then
+    pkill -x waybar 2>/dev/null || true
+    (setsid waybar >/dev/null 2>&1 &) || true
+  fi
+  if pgrep -x dunst >/dev/null 2>&1; then
+    pkill -x dunst 2>/dev/null || true
+    (setsid dunst >/dev/null 2>&1 &) || true
+  fi
+  "$OMAKUX_PATH/config-themes/hypr/scripts/wallpaper.sh" >/dev/null 2>&1 || true
+fi
+if command -v tmux >/dev/null 2>&1 && tmux ls >/dev/null 2>&1; then
+  tmux source-file "$HOME/.config/tmux/tmux.conf" >/dev/null 2>&1 || true
+fi
+
+command -v notify-send >/dev/null 2>&1 &&
+  notify-send -u low -h string:x-canonical-private-synchronous:theme "Tema omakux" "Aplicado: $NAME" 2>/dev/null || true
+
+ok "tema '$NAME' aplicado (GNOME, terminal, waybar, wofi, hyprlock, dunst, tmux, starship, btop, nvim, vscode)"

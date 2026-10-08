@@ -1,0 +1,57 @@
+/* omakux — wofi (GENERADO: omakux theme set <nombre>) */
+window {
+  margin: 0px;
+  border: 2px solid {{color_accent}};
+  border-radius: 14px;
+  background-color: {{color_bg}};
+  font-family: "JetBrains Mono";
+  font-size: 14px;
+}
+
+#input {
+  margin: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: {{color_surface}};
+  color: {{color_fg}};
+  border: 1px solid {{color_border}};
+}
+
+#input:focus {
+  border: 1px solid {{color_accent}};
+}
+
+#inner-box {
+  margin: 6px;
+}
+
+#outer-box {
+  margin: 0;
+}
+
+#scroll {
+  margin: 0 6px;
+}
+
+#text {
+  margin: 4px 8px;
+  color: {{color_fg}};
+}
+
+#entry {
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+#entry:selected {
+  background-color: {{color_accent}};
+}
+
+#entry:selected #text {
+  color: {{color_bg}};
+  font-weight: bold;
+}
+
+#image {
+  margin-right: 8px;
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d2021"/>
+      <stop offset="60%" stop-color="#282828"/>
+      <stop offset="100%" stop-color="#32302f"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="76%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="#fe8019" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#fe8019" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="14%" cy="86%" r="50%">
+      <stop offset="0%" stop-color="#b8bb26" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#b8bb26" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#g)"/>
+  <rect width="1920" height="1080" fill="url(#glow1)"/>
+  <rect width="1920" height="1080" fill="url(#glow2)"/>
+  <circle cx="1490" cy="250" r="4" fill="#fabd2f" opacity="0.75"/>
+  <circle cx="1550" cy="310" r="2.5" fill="#8ec07c" opacity="0.6"/>
+  <circle cx="310" cy="830" r="3" fill="#83a598" opacity="0.6"/>
+  <text x="1880" y="1050" text-anchor="end" font-family="monospace" font-size="20" fill="#7c6f64">omakux · gruvbox-dark</text>
+</svg>

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# omakux:summary Install apt packages: omakux pkg install <pkg...>
+# omakux:group pkg
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+[ $# -gt 0 ] || { echo "uso: omakux pkg install <paquete...>" >&2; exit 1; }
+confirm_sudo
+apt_install "$@"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# omakux:summary List system snapshots
+# omakux:group system
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+command -v timeshift >/dev/null 2>&1 || die "timeshift no instalado"
+sudo timeshift --list
+echo
+echo "restaurar requiere arrancar desde un live USB con timeshift (omakux docs/BACKUPS.md)"

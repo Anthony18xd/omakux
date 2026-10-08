@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# omakux:summary Create a web app: omakux webapp add <name> <url> [icon-url]
+# omakux:group webapp
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+name="${1:-}"
+url="${2:-}"
+icon_url="${3:-}"
+
+[ -n "$name" ] && [ -n "$url" ] || {
+  echo "uso: omakux webapp add <nombre> <url> [icono-url]" >&2
+  exit 1
+}
+case "$url" in
+  http://* | https://*) ;;
+  *) url="https://$url" ;;
+esac
+
+slug="$(echo "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')"
+[ -n "$slug" ] || die "nombre inválido"
+
+apps_dir="$HOME/.local/share/applications"
+icons_dir="$OMAKUX_STATE/webapp-icons"
+mkdir -p "$apps_dir" "$icons_dir"
+
+# icono: url explícita o favicon del sitio, si no, SVG generado con la inicial
+icon=""
+if [ -n "$icon_url" ]; then
+  if curl -fsSL -m 15 -o "$icons_dir/$slug.png" "$icon_url" 2>/dev/null; then
+    icon="$icons_dir/$slug.png"
+  fi
+fi
+if [ -z "$icon" ]; then
+  scheme="${url%%://*}"
+  base="$scheme://${url#*://}"
+  base="${base%%/*}"
+  if curl -fsSL -m 10 -o "$icons_dir/$slug.fav" "$base/favicon.ico" 2>/dev/null &&
+    [ -s "$icons_dir/$slug.fav" ]; then
+    icon="$icons_dir/$slug.fav"
+  fi
+fi
+if [ -z "$icon" ]; then
+  initial="$(echo "$name" | cut -c1 | tr '[:lower:]' '[:upper:]')"
+  color_accent="#7aa2f7"
+  if [ -f "$OMAKUX_STATE/theme" ]; then
+    color_accent="$(grep -m1 '^color_accent=' "$OMAKUX_PATH/themes/$(cat "$OMAKUX_STATE/theme")/colors.sh" 2>/dev/null | cut -d= -f2- || true)"
+    color_accent="${color_accent:-#7aa2f7}"
+  fi
+  cat >"$icons_dir/$slug.svg" <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="$color_accent"/>
+  <text x="64" y="86" text-anchor="middle" font-family="monospace" font-size="64" font-weight="bold" fill="#101014">$initial</text>
+</svg>
+EOF
+  icon="$icons_dir/$slug.svg"
+fi
+
+desktop="$apps_dir/omakux-$slug.desktop"
+cat >"$desktop" <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$name
+Comment=$url
+Exec=chromium --app=$url
+Icon=$icon
+Terminal=false
+Categories=Network;WebBrowser;
+StartupNotify=true
+X-omakux-webapp=$url
+EOF
+
+if has update-desktop-database; then
+  update-desktop-database "$apps_dir" >/dev/null 2>&1 || true
+fi
+
+ok "web app creada: $name → $url"
+echo "  escritorio: $desktop"
+echo "  elimina con: omakux webapp remove $slug"

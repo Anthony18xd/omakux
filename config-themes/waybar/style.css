@@ -1,0 +1,95 @@
+/* omakux — waybar (GENERADO: omakux theme set <nombre>) */
+@define-color background {{color_bg}};
+@define-color background-alt {{color_surface}};
+@define-color foreground {{color_fg}};
+@define-color muted {{color_muted}};
+@define-color accent {{color_accent}};
+@define-color green {{color_green}};
+@define-color yellow {{color_yellow}};
+@define-color red {{color_red}};
+@define-color border {{color_border}};
+@define-color active {{color_border_active}};
+
+* {
+  border: none;
+  border-radius: 0;
+  font-family: "JetBrains Mono", "Font Awesome 6 Free", sans-serif;
+  font-size: 13px;
+  min-height: 0;
+}
+
+window#waybar {
+  background: alpha(@background, 0.88);
+  color: @foreground;
+  border: 1px solid @border;
+  border-radius: 12px;
+}
+
+#custom-launcher {
+  padding: 0 12px;
+  margin: 4px 4px 4px 8px;
+  background: @accent;
+  color: @background;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+#workspaces button {
+  padding: 0 8px;
+  margin: 4px 2px;
+  color: @muted;
+  border-radius: 8px;
+  background: transparent;
+}
+
+#workspaces button.active {
+  color: @background;
+  background: @accent;
+}
+
+#workspaces button.urgent {
+  background: @red;
+  color: @background;
+}
+
+#workspaces button:hover {
+  color: @foreground;
+  background: @background-alt;
+}
+
+#clock,
+#pulseaudio,
+#network,
+#battery,
+#tray,
+#custom-power {
+  padding: 0 10px;
+  margin: 4px 2px;
+  border-radius: 8px;
+}
+
+#clock {
+  font-weight: bold;
+  color: @accent;
+}
+
+#pulseaudio.muted {
+  color: @red;
+}
+
+#battery.warning {
+  color: @yellow;
+}
+
+#battery.critical {
+  color: @red;
+}
+
+#custom-power:hover,
+#workspaces button:hover {
+  transition: all 0.15s ease;
+}
+
+#custom-power {
+  margin-right: 8px;
+}

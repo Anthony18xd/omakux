@@ -1,0 +1,9 @@
+# artefactos locales
+*.log
+*.bak
+*~
+.DS_Store
+
+# dependencias/objetos si algún día hay binarios en Rust/Go
+/target
+/dist

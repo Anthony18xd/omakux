@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# omakux:summary Install a theme from a git URL: omakux theme install <url>
+# omakux:group theme
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+URL="${1:-}"
+[ -n "$URL" ] || { echo "uso: omakux theme install <git-url>" >&2; exit 1; }
+
+basename_url="$(basename "$URL" .git)"
+name="$basename_url"
+# convención omakux-<nombre>-theme / omarchy-<nombre>-theme
+name="${name#omakux-}"
+name="${name#omarchy-}"
+name="${name%-theme}"
+
+dest="$OMAKUX_PATH/themes/$name"
+[ -d "$dest" ] && die "el tema '$name' ya existe (omakux theme set $name)"
+
+log "descargando tema '$name' desde $URL"
+git clone --depth 1 "$URL" "$dest" >/dev/null 2>&1 || die "fallo el clone de $URL"
+
+if [ ! -f "$dest/colors.sh" ]; then
+  rm -rf "$dest"
+  die "el repositorio no contiene colors.sh (no es un tema omakux válido)"
+fi
+
+ok "tema instalado: $name"
+echo "apícalo con: omakux theme set $name"

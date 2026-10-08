@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# omakux:summary Search and pick packages to install (fzf/gum)
+# omakux:group pkg
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+if command -v fzf >/dev/null 2>&1; then
+  sel="$(apt-cache pkgnames 2>/dev/null | fzf --prompt 'paquete> ' --height=40% --reverse)"
+elif command -v gum >/dev/null 2>&1; then
+  sel="$(apt-cache pkgnames 2>/dev/null | gum filter --prompt 'paquete> ')"
+else
+  echo "instala fzf o gum para buscar: omakux pkg install fzf" >&2
+  exit 1
+fi
+[ -n "$sel" ] || exit 0
+exec "$OMAKUX_BIN/omakux-pkg-install" "$sel"

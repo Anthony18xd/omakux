@@ -1,0 +1,20 @@
+# desktop — GNOME, tipografía, audio y utilidades de escritorio
+gnome-tweaks
+gnome-shell-extension-manager
+nautilus
+seahorse
+gnome-disk-utility
+alacritty
+foot
+pavucontrol
+pulseaudio-utils
+brightnessctl
+playerctl
+libnotify-bin
+alsa-utils
+xdotool
+fonts-firacode
+fonts-jetbrains-mono
+fonts-noto-color-emoji
+fonts-liberation
+fonts-dejavu-core

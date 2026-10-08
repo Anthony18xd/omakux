@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# omakux:summary Create a system snapshot: omakux snapshot create [comentario]
+# omakux:group system
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+command -v timeshift >/dev/null 2>&1 || die "timeshift no instalado (omakux --force --only system)"
+[ -f /etc/timeshift/timeshift.json ] || die "timeshift sin configurar (omakux --force --only system)"
+
+comment="${1:-manual $(date '+%F %T')}"
+confirm_sudo
+log "creando snapshot: $comment"
+sud timeshift --create --yes --comments "$comment"
+ok "snapshot creado"

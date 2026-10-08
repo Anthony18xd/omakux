@@ -1,0 +1,91 @@
+# omakux — starship prompt (GENERADO: omakux theme set <nombre>)
+add_newline = true
+command_timeout = 800
+
+format = """
+[](bg:accent)[](fg:bg)\
+$os\
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_status\
+$python\
+$nodejs\
+$rust\
+$golang\
+$cmd_duration\
+$line_break\
+$character"""
+
+palette = "omakux"
+
+[palettes.omakux]
+bg = "{{color_bg}}"
+fg = "{{color_fg}}"
+accent = "{{color_accent}}"
+green = "{{color_green}}"
+yellow = "{{color_yellow}}"
+red = "{{color_red}}"
+muted = "{{color_muted}}"
+surface = "{{color_surface}}"
+
+[directory]
+style = "fg:accent"
+truncation_length = 3
+truncate_to_repo = false
+format = "[ $path ]($style)"
+
+[os]
+disabled = false
+style = "fg:muted"
+
+[username]
+show_always = false
+style_root = "fg:red"
+style_user = "fg:accent"
+format = "[$user]($style) "
+
+[hostname]
+ssh_only = true
+style = "fg:muted"
+format = "[@$hostname]($style) "
+
+[git_branch]
+symbol = ""
+style = "fg:green"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "fg:yellow"
+format = "[$all_status$ahead_behind]($style) "
+
+[cmd_duration]
+min_time = 2000
+style = "fg:muted"
+format = "[⏱ $duration]($style) "
+
+[nodejs]
+symbol = " "
+style = "fg:green"
+format = "[$symbol($version)]($style) "
+
+[python]
+symbol = " "
+style = "fg:yellow"
+format = "[$symbol($version)]($style) "
+
+[rust]
+symbol = " "
+style = "fg:red"
+format = "[$symbol($version)]($style) "
+
+[golang]
+symbol = " "
+style = "fg:cyan"
+format = "[$symbol($version)]($style) "
+
+[character]
+success_symbol = "[❯](fg:accent)"
+error_symbol = "[❯](fg:red)"
+vimcmd_symbol = "[❮](fg:green)"

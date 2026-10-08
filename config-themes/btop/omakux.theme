@@ -1,0 +1,38 @@
+/* omakux — btop (GENERADO: omakux theme set <nombre>) */
+color_theme = "omakux"
+truecolor = True
+color_symbols = True
+presets = "0 0 0 0 0 0"
+
+[main]
+bg_color = "{{color_bg}}"
+fg_color = "{{color_fg}}"
+mc_bg_color = "{{color_bg_alt}}"
+line_color = "{{color_border}}"
+text_color = "{{color_fg}}"
+graph_symbol = "braille"
+update_ms = 1500
+
+[cpu]
+graph_color = "{{color_accent}}"
+box_color = "{{color_border}}"
+core_color = "{{color_blue}}"
+mid_color = "{{color_muted}}"
+lowmem_color = "{{color_yellow}}"
+himem_color = "{{color_red}}"
+temp_color = "{{color_orange}}"
+
+[mem]
+graph_color = "{{color_magenta}}"
+box_color = "{{color_border}}"
+swap_color = "{{color_cyan}}"
+
+[net]
+graph_color = "{{color_green}}"
+box_color = "{{color_border}}"
+up_color = "{{color_green}}"
+down_color = "{{color_blue}}"
+
+[proc]
+box_color = "{{color_border}}"
+selected_color = "{{color_accent}}"

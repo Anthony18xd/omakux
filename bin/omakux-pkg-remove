@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# omakux:summary Remove apt packages: omakux pkg remove <pkg...>
+# omakux:group pkg
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+[ $# -gt 0 ] || { echo "uso: omakux pkg remove <paquete...>" >&2; exit 1; }
+confirm_sudo
+log "eliminando: $*"
+sud apt-get remove -y "$@"
+for p in "$@"; do
+  sed -i "\|^$(printf '%s' "$p" | sed 's/[.[\*^$]/\\&/g')\$|d" "$OMAKUX_STATE/installed-packages.txt" 2>/dev/null || true
+done
+ok "eliminado"

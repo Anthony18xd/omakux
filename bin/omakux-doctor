@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# omakux:summary Health check of the omakux installation
+# omakux:group system
+set -uo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+fails=0
+warns=0
+
+check() { # check <ok|warn|fail> <desc> [hint]
+  local lvl="$1" desc="$2" hint="${3:-}"
+  case "$lvl" in
+    ok) printf '  %s✓%s %s\n' "$_c_green" "$_c_reset" "$desc" ;;
+    warn)
+      warns=$((warns + 1))
+      printf '  %s!%s %s%s\n' "$_c_yellow" "$_c_reset" "$desc" "${hint:+ — $hint}"
+      ;;
+    fail)
+      fails=$((fails + 1))
+      printf '  %s✗%s %s%s\n' "$_c_red" "$_c_reset" "$desc" "${hint:+ — $hint}"
+      ;;
+  esac
+}
+
+echo
+echo "omakux doctor"
+echo "─────────────"
+
+# omakux no instala NOPASSWD por defecto: sin credenciales no se puede mirar
+# dentro de timeshift/ufw. Se pide una vez (si hay TTY) y se cachea.
+sudo_ok=0
+if sudo -n true 2>/dev/null; then
+  sudo_ok=1
+elif [ -t 0 ] && sudo -v 2>/dev/null; then
+  sudo_ok=1
+fi
+
+# sistema
+[ -r /etc/os-release ] && . /etc/os-release
+case "${ID:-}-${VERSION_ID:-}" in
+  ubuntu-*) check ok "Ubuntu ${VERSION_ID}" ;;
+  *) check fail "no es Ubuntu" ;;
+esac
+case "${XDG_SESSION_TYPE:-}" in
+  wayland) check ok "sesión Wayland (${XDG_CURRENT_DESKTOP:-?})" ;;
+  x11) check warn "sesión X11" "algunos efectos requieren Wayland" ;;
+  *) check warn "sesión desconocida" ;;
+esac
+
+# CLI
+if [ -L /usr/local/bin/omakux ]; then
+  check ok "symlink /usr/local/bin/omakux"
+else
+  check fail "falta symlink /usr/local/bin/omakux" "omakux --force --only finalize"
+fi
+
+# tema
+theme="$(cat "$OMAKUX_STATE/theme" 2>/dev/null || true)"
+if [ -n "$theme" ] && [ -d "$OMAKUX_PATH/themes/$theme" ]; then
+  check ok "tema activo: $theme"
+else
+  check fail "sin tema activo" "omakux theme set tokyonight"
+fi
+
+# renders sin placeholders sueltos
+leftover=0
+for f in "$HOME/.config/alacritty/alacritty.toml" "$HOME/.config/waybar/style.css" \
+  "$HOME/.config/hypr/hyprlock.conf" "$HOME/.config/wofi/style.css"; do
+  [ -f "$f" ] || continue
+  if grep -q '{{' "$f" 2>/dev/null; then
+    leftover=1
+    check fail "placeholders sin renderizar en $f" "omakux theme set $theme"
+  fi
+done
+[ "$leftover" = "0" ] && [ -f "$HOME/.config/alacritty/alacritty.toml" ] && check ok "configs temáticas renderizadas"
+
+# herramientas core
+for c in fish starship nvim tmux btop git curl jq gum; do
+  if has "$c"; then check ok "$c"; else check fail "$c no está" "omakux pkg install $c"; fi
+done
+
+# sesión hyprland
+if [ -f /usr/share/wayland-sessions/hyprland.desktop ]; then
+  check ok "sesión Hyprland instalada"
+else
+  check warn "sesión Hyprland ausente" "omakux --force --only hyprland"
+fi
+for c in hyprland waybar wofi hyprlock grim slurp; do
+  if has "$c"; then check ok "$c"; else check warn "$c no está (solo afecta a Hyprland)"; fi
+done
+
+# gpu
+if [ -f "$HOME/.config/hypr/gpu.conf" ]; then
+  if grep -q AQ_DRM_DEVICES "$HOME/.config/hypr/gpu.conf"; then
+    check ok "GPU híbrida configurada ($(grep AQ_DRM_DEVICES "$HOME/.config/hypr/gpu.conf" | head -c 80)…)"
+  else
+    check warn "gpu.conf sin AQ_DRM_DEVICES" "revisa: cat ~/.config/hypr/gpu.conf"
+  fi
+fi
+
+# sistema (timeshift y ufw necesitan root)
+if [ "$sudo_ok" != "1" ]; then
+  check warn "sin credenciales de sudo" "vuelve a ejecutar omakux doctor en una terminal"
+elif has timeshift && [ -f /etc/timeshift/timeshift.json ]; then
+  # LC_ALL=C + fila de tabla (el texto varía con el locale)
+  if sud env LC_ALL=C timeshift --list 2>/dev/null | grep -qE '^[0-9]+[[:space:]]+>'; then
+    check ok "timeshift: snapshots activos"
+  else
+    check warn "timeshift configurado pero sin snapshots" "omakux snapshot create"
+  fi
+else
+  check warn "timeshift sin configurar" "omakux --force --only system"
+fi
+if [ "$sudo_ok" != "1" ]; then
+  : # ya avisado arriba
+elif has ufw && sud env LC_ALL=C ufw status 2>/dev/null | grep -q "Status: active"; then
+  check ok "firewall ufw activo"
+else
+  check warn "ufw inactivo" "sudo ufw enable"
+fi
+if getent group docker | grep -q ":$USER"; then
+  check ok "usuario en grupo docker"
+else
+  check warn "usuario fuera del grupo docker" "cierra sesión tras añadirlo"
+fi
+if [ "$(getent passwd "$USER" | cut -d: -f7)" = "$(command -v fish)" ]; then
+  check ok "shell por defecto: fish"
+else
+  check warn "shell por defecto no es fish" "chsh -s \$(command -v fish)"
+fi
+
+# disco
+free_g="$(df -BG --output=avail / | tail -1 | tr -dc 0-9)"
+if [ "${free_g:-0}" -ge 5 ]; then check ok "disco: ${free_g}G libres"; else check warn "disco bajo: ${free_g}G"; fi
+
+# agentes IA
+for c in claude codex ollama; do
+  if has "$c"; then check ok "$c"; else check warn "$c no instalado" "omakux ai install all"; fi
+done
+
+echo "─────────────"
+if [ "$fails" -gt 0 ]; then
+  printf '%s%d fallos%s, %d avisos\n' "$_c_red" "$fails" "$_c_reset" "$warns"
+  exit 1
+elif [ "$warns" -gt 0 ]; then
+  printf '%s0 fallos%s, %d avisos\n' "$_c_green" "$_c_reset" "$warns"
+else
+  printf '%stodo en orden%s\n' "$_c_green" "$_c_reset"
+fi

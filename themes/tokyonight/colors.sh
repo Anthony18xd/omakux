@@ -1,0 +1,27 @@
+# tokyonight — azul eléctrico sobre noche profunda (tema por defecto)
+# shellcheck disable=SC2034
+# ^ las variables las consume omakux-theme-set al hacer source de este archivo
+color_bg="#1a1b26"
+color_fg="#c0caf5"
+color_bg_alt="#16161e"
+color_surface="#24283b"
+color_muted="#414868"
+color_border="#292e42"
+color_accent="#7aa2f7"
+color_selection="#33467c"
+color_red="#f7768e"
+color_green="#9ece6a"
+color_yellow="#e0af68"
+color_blue="#7aa2f7"
+color_magenta="#bb9af7"
+color_cyan="#7dcfff"
+color_orange="#ff9e64"
+color_black="#0d0e12"
+color_shadow="#000000"
+
+vscode_theme="Tokyo Night"
+nvim_plugin="folke/tokyonight.nvim"
+nvim_theme="tokyonight-night"
+gnome_accent="blue"
+gnome_scheme="prefer-dark"
+gtk_theme="Adwaita-dark"

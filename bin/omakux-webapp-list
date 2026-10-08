@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# omakux:summary List installed web apps
+# omakux:group webapp
+set -euo pipefail
+
+found=0
+for f in "$HOME/.local/share/applications"/omakux-*.desktop; do
+  [ -f "$f" ] || continue
+  found=1
+  name="$(grep -m1 '^Name=' "$f" | cut -d= -f2-)"
+  url="$(grep -m1 '^X-omakux-webapp=' "$f" | cut -d= -f2-)"
+  slug="$(basename "$f" .desktop)"
+  slug="${slug#omakux-}"
+  printf '  %-24s %-30s %s\n' "$slug" "$name" "$url"
+done
+[ "$found" = "1" ] || echo "(sin web apps — omakux webapp add <nombre> <url>)"
