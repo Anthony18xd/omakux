@@ -51,6 +51,8 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 | `omakux` | lista todos los comandos |
 | `omakux help <comando>` | ficha de un comando (uso, grupo, hermanos) |
 | `omakux completion [install]` | completado para bash, fish o zsh |
+| `omakux config list/diff` | qué dotfiles gestiona omakux y tus cambios sobre el repo |
+| `omakux config export/import` | tus dotfiles a un repo (o desde uno) |
 | `omakux update` | snapshot + apt + flatpak + snap + git + reaplica configs |
 | `omakux doctor` | diagnóstico de la instalación |
 | `omakux menu` | menú interactivo (wofi/gum) |
@@ -63,6 +65,22 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 | `omakux ai install <claude\|codex\|ollama\|voxtype>` | agentes de IA |
 | `omakux config reset` | reaplica configs del repo (respalda tus edits) |
 | `omakux uninstall` | desinstala y restaura lo original |
+
+## Tus dotfiles como producto
+
+`config/dotfiles` lista todo lo que omakux gestiona (semillas `seed` que no se
+tocan y configs `render` que genera el tema). Desde ahí:
+
+```bash
+omakux config list              # estado de cada dotfile (igual / modificada / falta)
+omakux config diff              # tus cambios frente al repo (para decidir antes de un update)
+omakux config export ~/dotfiles # versiona tus dotfiles en un repo git (con README y manifiesto)
+omakux config import ~/dotfiles # restaura los de otra máquina (con backup previo)
+```
+
+Para los `render`, omakux guarda una foto de lo último que pintó
+(`~/.local/state/omakux/rendered`): así `config diff` te muestra SOLO lo que
+editaste después del `omakux theme set`, no el render entero.
 
 ## Temas
 
@@ -108,7 +126,7 @@ omakux/
 ├── install.sh           # orquestador de fases (dry-run, --only, --force)
 ├── bin/                 # CLI: router + omakux-<comando> (headers # omakux:summary)
 ├── install/             # fases + listas de paquetes *.apt
-├── config/              # semillas estáticas (fish, tmux, yazi)
+├── config/              # semillas estáticas + config/dotfiles (manifiesto)
 ├── config-themes/       # manifest + templates con {{placeholders}}
 ├── themes/              # <tema>/colors.sh + wallpaper.svg
 ├── applications/        # install/ y remove/ de apps opcionales
@@ -121,8 +139,8 @@ omakux/
 ## Desarrollo
 
 ```bash
-omakux lint   # shellcheck sobre los 62 scripts
-omakux test   # lint + 60 tests bats
+omakux lint   # shellcheck sobre los 66 scripts
+omakux test   # lint + 71 tests bats
 ```
 
 (atajos: `scripts/lint.sh` y `scripts/test.sh`, lo mismo que corre la CI)
@@ -142,6 +160,8 @@ Reglas que la CI hace cumplir:
 - `seed`/`backup_file` respaldan antes de sobreescribir.
 - Toda paleta define la lista mínima de colores (`omakux theme lint`).
 - El **manifest** de temas solo renderiza targets cuyo requisito se cumple.
+- `config/dotfiles` no se desvía del instalador: un test cruza sus destinos
+  con los `seed` de `install/*.sh` y los renders del manifest de temas.
 
 ## Seguridad
 

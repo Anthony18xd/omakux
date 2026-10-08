@@ -211,3 +211,65 @@ add_user_to_group() {
   sud usermod -aG "$group" "$user"
   ok "usuario $user añadido al grupo $group (efectivo tras reiniciar sesión)"
 }
+
+# --- dotfiles (manifiesto: config/dotfiles) --------------------------
+
+# expande ~/ en un destino del manifiesto
+dotfiles_dest() {
+  printf '%s' "${1/#\~/$HOME}"
+}
+
+# recorre el manifiesto; llama a: <callback> <modo> <src> <destino absoluto>
+dotfiles_each() {
+  local cb="$1" modo src dest
+  [ -f "$OMAKUX_PATH/config/dotfiles" ] || {
+    warn "manifiesto no encontrado: $OMAKUX_PATH/config/dotfiles"
+    return 1
+  }
+  while read -r modo src dest; do
+    case "$modo" in '' | '#'*) continue ;; esac
+    [ -n "${dest:-}" ] || continue
+    "$cb" "$modo" "$src" "$(dotfiles_dest "$dest")"
+  done <"$OMAKUX_PATH/config/dotfiles"
+}
+
+# dónde guarda omakux el último render de cada destino (para poder difuminar)
+# $OMAKUX_STATE/rendered/<ruta relativa a $HOME>
+dotfiles_snapshot() {
+  case "$1" in
+    "$HOME"/*) printf '%s/rendered/%s' "$OMAKUX_STATE" "${1#"$HOME"/}" ;;
+    *) return 1 ;;
+  esac
+}
+
+# ruta relativa de un destino (para copiarlo dentro de un export)
+dotfiles_rel() {
+  local dest="$1"
+  case "$dest" in
+    "$HOME"/*) printf '%s' "${dest#"$HOME"/}" ;;
+    /*) printf '%s' "${dest#/}" ;;
+    *) printf '%s' "$dest" ;;
+  esac
+}
+
+# estado de un dotfile: igual | modificada | falta | pendiente
+dotfiles_status() {
+  local modo="$1" src="$2" dest="$3" ref=""
+  [ -f "$dest" ] || { echo "falta"; return 0; }
+  case "$modo" in
+    seed) ref="$OMAKUX_PATH/$src" ;;
+    render)
+      ref="$(dotfiles_snapshot "$dest" 2>/dev/null || true)"
+      if [ -z "$ref" ] || [ ! -f "$ref" ]; then
+        echo "pendiente"
+        return 0
+      fi
+      ;;
+    *) echo "desconocido"; return 0 ;;
+  esac
+  if cmp -s "$ref" "$dest"; then
+    echo "igual"
+  else
+    echo "modificada"
+  fi
+}

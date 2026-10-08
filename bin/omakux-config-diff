@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# omakux:summary Show your edits vs the repo defaults: omakux config diff [filtro]
+# omakux:group config
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+FILTER="${1:-}"
+diferencias=0
+mirados=0
+
+diff_one() {
+  local modo="$1" src="$2" dest="$3" ref label
+  if [ -n "$FILTER" ]; then
+    case "$dest" in *"$FILTER"*) ;; *) return 0 ;; esac
+  fi
+  mirados=$((mirados + 1))
+  if [ ! -f "$dest" ]; then
+    printf '%s(falta)%s %s\n' "$_c_red" "$_c_reset" "$dest"
+    diferencias=$((diferencias + 1))
+    return 0
+  fi
+  case "$modo" in
+    seed) ref="$OMAKUX_PATH/$src" ;;
+    *)
+      ref="$(dotfiles_snapshot "$dest" 2>/dev/null || true)"
+      if [ -z "$ref" ] || [ ! -f "$ref" ]; then
+        printf '%s(pendiente de render)%s %s\n' "$_c_yellow" "$_c_reset" "$dest"
+        echo "  se regenera con: omakux theme set $(cat "$OMAKUX_STATE/theme" 2>/dev/null || echo "<tema>")"
+        diferencias=$((diferencias + 1))
+        return 0
+      fi
+      ;;
+  esac
+  if cmp -s "$ref" "$dest"; then
+    return 0
+  fi
+  diferencias=$((diferencias + 1))
+  if [ "$modo" = "render" ]; then
+    label="último render"
+  else
+    label="repo/$src"
+  fi
+  printf '%s%s%s\n' "$_c_dim" "$dest" "$_c_reset"
+  diff -u --label "$label" --label "$dest" "$ref" "$dest" || true
+}
+
+dotfiles_each diff_one
+
+if [ "$diferencias" -eq 0 ]; then
+  if [ -n "$FILTER" ] && [ "$mirados" -eq 0 ]; then
+    echo "ningún dotfile coincide con '$FILTER'"
+    exit 0
+  fi
+  ok "sin diferencias: tus dotfiles son los del repo"
+  exit 0
+fi
+
+echo
+printf '%d dotfile(s) con cambios (repo → tuyo). Para volver al original: omakux config reset\n' \
+  "$diferencias"
+exit 1

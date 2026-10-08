@@ -157,7 +157,13 @@ render() {
     sud cp "$tmp" "$dest" && wrote=1
   fi
   rm -f "$tmp"
-  [ "$wrote" = "1" ] && return 0
+  if [ "$wrote" = "1" ]; then
+    if snap="$(dotfiles_snapshot "$dest" 2>/dev/null)" && [ -n "$snap" ]; then
+      mkdir -p "$(dirname "$snap")"
+      cp "$dest" "$snap"
+    fi
+    return 0
+  fi
   warn "sin permisos en $dest — omitido (aplica con sudo y repite: omakux theme set $NAME)"
   return 1
 }

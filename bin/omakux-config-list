@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# omakux:summary List dotfiles managed by omakux (from config/dotfiles)
+# omakux:group config
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+FILTER="${1:-}"
+total=0
+igual=0
+modificada=0
+falta=0
+pendiente=0
+
+show() {
+  local modo="$1" src="$2" dest="$3" st
+  if [ -n "$FILTER" ]; then
+    case "$dest" in *"$FILTER"*) ;; *) return 0 ;; esac
+  fi
+  st="$(dotfiles_status "$modo" "$src" "$dest")"
+  total=$((total + 1))
+  case "$st" in
+    igual) igual=$((igual + 1)) ;;
+    modificada) modificada=$((modificada + 1)) ;;
+    falta) falta=$((falta + 1)) ;;
+    pendiente) pendiente=$((pendiente + 1)) ;;
+  esac
+  printf '%-6s %-34s %-44s %s\n' "$modo" "$src" "$dest" "$st"
+}
+
+echo "modo  src                                destino                                        estado"
+echo "----- ---------------------------------- ---------------------------------------------- ------"
+dotfiles_each show
+
+if [ "$total" -eq 0 ]; then
+  echo "  (ningún dotfile coincide con '${FILTER}')"
+  exit 0
+fi
+echo
+printf '  %d dotfiles · %d iguales · %d modificadas · %d pendientes · %d sin instalar\n' \
+  "$total" "$igual" "$modificada" "$pendiente" "$falta"
+if [ "$modificada" -gt 0 ] || [ "$pendiente" -gt 0 ]; then
+  echo "  detalle: omakux config diff   ·   reaplicar: omakux config reset"
+fi

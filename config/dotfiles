@@ -1,0 +1,33 @@
+# omakux — manifiesto de tus dotfiles
+#
+# cada línea:  <modo>  <src>  <dest>
+#   modo  seed   → se copia del repo (lo reaplica: omakux config reset)
+#         render → lo pinta omakux theme set (tus ediciones: omakux config diff)
+#   src   relativo a la raíz del repo
+#   dest  ruta; `~/...` se expande a $HOME
+#
+# este archivo es la fuente de verdad de `omakux config list|diff|export|import`;
+# un test de la suite falla si un seed del instalador no está aquí (o al revés).
+
+# --- seed: configs estáticas que puedes tocar sin miedo ---
+seed    config/fish/config.fish                 ~/.config/fish/config.fish
+seed    config/tmux/tmux.conf                   ~/.config/tmux/tmux.conf
+seed    config/yazi/yazi.toml                   ~/.config/yazi/yazi.toml
+seed    config-themes/hypr/hyprland.conf        ~/.config/hypr/hyprland.conf
+seed    config-themes/hypr/hypridle.conf        ~/.config/hypr/hypridle.conf
+seed    config-themes/hypr/local.conf           ~/.config/hypr/local.conf
+seed    config-themes/waybar/config.jsonc       ~/.config/waybar/config.jsonc
+seed    config-themes/wofi/config               ~/.config/wofi/config
+
+# --- render: los regenera omakux theme set (edítalos en el repo, no aquí) ---
+render  config-themes/alacritty/alacritty.toml  ~/.config/alacritty/alacritty.toml
+render  config-themes/waybar/style.css          ~/.config/waybar/style.css
+render  config-themes/wofi/style.css            ~/.config/wofi/style.css
+render  config-themes/hypr/hyprlock.conf        ~/.config/hypr/hyprlock.conf
+render  config-themes/hypr/colors.conf          ~/.config/hypr/colors.conf
+render  config-themes/dunst/dunst.conf          ~/.config/dunst/dunst.conf
+render  config-themes/starship/starship.toml    ~/.config/starship.toml
+render  config-themes/tmux/colors.conf          ~/.config/tmux/colors.conf
+render  config-themes/btop/omakux.theme         ~/.config/btop/themes/omakux.theme
+render  config-themes/gtk/settings.ini          ~/.config/gtk-3.0/settings.ini
+render  config-themes/gtk/settings.ini          ~/.config/gtk-4.0/settings.ini

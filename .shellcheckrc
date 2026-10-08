@@ -3,3 +3,6 @@
 shell=bash
 # las fuentes son dinámicas ($OMAKUX_PATH/...): imposible seguirlas en estático
 disable=SC1091
+
+# SC2329: callbacks invocadas por nombre desde dotfiles_each (falso positivo)
+disable=SC2329,SC2155

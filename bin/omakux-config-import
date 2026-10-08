@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# omakux:summary Import dotfiles exported by omakux: omakux config import <dir>
+# omakux:group config
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+DIR="${1:-}"
+[ -n "$DIR" ] || die "uso: omakux config import <directorio>"
+[ -d "$DIR/files" ] || die "no parece un export de omakux (falta $DIR/files)"
+
+MANIFEST="$DIR/omakux-dotfiles.manifest"
+[ -f "$MANIFEST" ] || MANIFEST="$OMAKUX_PATH/config/dotfiles"
+
+if [ "${OMAKUX_YES:-0}" != "1" ]; then
+  if command -v gum >/dev/null 2>&1 && [ -t 0 ]; then
+    gum confirm "¿Importar dotfiles de $DIR? (tus actuales se respaldan)" || exit 0
+  else
+    printf 'Esto sobreescribe tus dotfiles con los de %s (backup en %s/backup). ¿Continuar? [s/N] ' \
+      "$DIR" "$OMAKUX_STATE"
+    read -r ans
+    case "$ans" in s | S | si | sí) ;; *) exit 0 ;; esac
+  fi
+fi
+
+importados=0
+respaldados=0
+ausentes=0
+
+import_one() {
+  local modo="$1" src="$2" dest="$3" rel orig
+  rel="$(dotfiles_rel "$dest")"
+  orig="$DIR/files/$rel"
+  if [ ! -f "$orig" ]; then
+    ausentes=$((ausentes + 1))
+    return 0
+  fi
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    printf '%sDRY import %s -> %s%s\n' "$_c_dim" "$orig" "$dest" "$_c_reset"
+    importados=$((importados + 1))
+    return 0
+  fi
+  if [ -f "$dest" ] && ! cmp -s "$orig" "$dest"; then
+    backup_file "$dest"
+    respaldados=$((respaldados + 1))
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp "$orig" "$dest"
+  importados=$((importados + 1))
+}
+
+while read -r modo src dest; do
+  case "$modo" in '' | '#'*) continue ;; esac
+  [ -n "${dest:-}" ] || continue
+  import_one "$modo" "$src" "$(dotfiles_dest "$dest")"
+done <"$MANIFEST"
+
+if [ "$OMAKUX_DRY" = "1" ]; then
+  ok "DRY: $importados dotfiles se importarían de $DIR"
+  exit 0
+fi
+
+ok "importados $importados dotfiles de $DIR (${respaldados} respaldados en $OMAKUX_STATE/backup)"
+[ "$ausentes" -gt 0 ] && echo "  ($ausentes dotfiles no venían en el export: se mantienen)"
+echo "  si tocas un 'render': omakux theme set \$(cat $OMAKUX_STATE/theme 2>/dev/null || echo tokyonight)"

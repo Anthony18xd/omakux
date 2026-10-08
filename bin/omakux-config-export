@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# omakux:summary Export your dotfiles to a folder (git ready): omakux config export <dir>
+# omakux:group config
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+DIR="${1:-}"
+[ -n "$DIR" ] || die "uso: omakux config export <directorio>"
+
+if [ -e "$DIR" ] && [ -n "$(ls -A "$DIR" 2>/dev/null)" ]; then
+  die "el destino existe y no está vacío: $DIR (usa otro para no pisar nada)"
+fi
+
+exportados=0
+omitidos=0
+
+copy_one() {
+  local modo="$1" src="$2" dest="$3" rel
+  if [ ! -f "$dest" ]; then
+    omitidos=$((omitidos + 1))
+    return 0
+  fi
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    printf '%sDRY export %s -> %s%s\n' "$_c_dim" "$dest" "$DIR/files/" "$_c_reset"
+    exportados=$((exportados + 1))
+    return 0
+  fi
+  rel="$(dotfiles_rel "$dest")"
+  mkdir -p "$DIR/files/$(dirname "$rel")"
+  cp "$dest" "$DIR/files/$rel"
+  exportados=$((exportados + 1))
+}
+
+dotfiles_each copy_one
+
+if [ "$exportados" -eq 0 ]; then
+  die "no hay ningún dotfile instalado que exportar"
+fi
+
+if [ "$OMAKUX_DRY" = "1" ]; then
+  ok "DRY: $exportados dotfiles se exportarían a $DIR"
+  exit 0
+fi
+
+cp "$OMAKUX_PATH/config/dotfiles" "$DIR/omakux-dotfiles.manifest"
+
+cat >"$DIR/README.md" <<EOF
+# dotfiles de $USER
+
+Exportados con \`omakux config export\` desde omakux $(cat "$OMAKUX_PATH/version" 2>/dev/null || echo "?") el $(date +%F).
+
+## Restaurar en otra máquina
+
+\`\`\`bash
+bash install.sh                       # instala omakux
+omakux config import <esta-carpeta>   # copia tus dotfiles (backup previo)
+omakux theme set <tema>               # repinta lo que es 'render'
+\`\`\`
+
+- \`seed\`: se copian tal cual (puedes editarlos).
+- \`render\`: los genera \`omakux theme set\`; si los editas a mano se
+  pierden en la siguiente aplicación (edítalos en el repo o cambia la paleta).
+
+\`omakux config diff\` muestra tus cambios frente a esto mismo.
+EOF
+
+if has git; then
+  if git -C "$DIR" init -q 2>/dev/null; then
+    git -C "$DIR" add -A >/dev/null 2>&1 || true
+    git -C "$DIR" -c user.name="${USER:-omakux}" -c user.email="${USER:-omakux}@localhost" \
+      commit -q -m "omakux: export de dotfiles $(date +%F)" >/dev/null 2>&1 || true
+  fi
+fi
+
+ok "exportados $exportados dotfiles en $DIR"
+if [ "$omitidos" -gt 0 ]; then
+  echo "  ($omitidos dotfiles no estaban instalados: se quedan fuera)"
+fi
+echo "  súbelo:  git -C $DIR remote add origin <tu-repo> && git -C $DIR push -u origin main"
