@@ -98,9 +98,11 @@ omakux/
 ## Desarrollo
 
 ```bash
-scripts/lint.sh   # shellcheck sobre los 56 scripts
-scripts/test.sh   # lint + 34 tests bats
+omakux lint   # shellcheck sobre los 56 scripts
+omakux test   # lint + 34 tests bats
 ```
+
+(atajos: `scripts/lint.sh` y `scripts/test.sh`, lo mismo que corre la CI)
 
 Los tests corren en un **sandbox** (`HOME`, `OMAKUX_STATE` y `PATH` propios, con
 `gsettings`/`curl`/`magick` reemplazados por stubs): no tocan tu sesión real,

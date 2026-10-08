@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# omakux:summary Run the test suite (shellcheck + bats)
+# omakux:group dev
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+
+exec bash "$OMAKUX_PATH/scripts/test.sh" "$@"
