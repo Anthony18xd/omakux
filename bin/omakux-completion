@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# omakux:summary Shell completions: omakux completion [install] [bash|fish|zsh]
+# omakux:group omakux
+set -euo pipefail
+
+OMAKUX_BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
+export OMAKUX_PATH
+# shellcheck disable=SC1091
+source "$OMAKUX_PATH/install/lib.sh"
+
+# un comando por línea en forma natural: "theme set"
+commands() {
+  bash "$OMAKUX_BIN/omakux" --commands
+}
+
+groups() {
+  commands | awk '{print $1}' | sort -u | tr '\n' ' '
+}
+
+subcommands() {
+  local g="$1" out
+  out="$(commands | awk -v g="$g" '$1 == g { $1 = ""; sub(/^ /, ""); printf "%s ", $0 }')"
+  # argumentos propios que no son comandos (viven dentro de omakux-completion)
+  [ "$g" = "completion" ] && out="$out install bash fish zsh "
+  printf '%s' "$out"
+}
+
+gen_bash() {
+  cat <<EOF
+# omakux — completion para bash (generado: omakux completion bash)
+# instala: omakux completion install bash
+_omakux() {
+  local cur first subs
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  if [ "\$COMP_CWORD" -eq 1 ]; then
+    COMPREPLY=( \$(compgen -W "$(groups)" -- "\$cur") )
+    return
+  fi
+  first="\${COMP_WORDS[1]}"
+  case "\$first" in
+EOF
+  local g
+  for g in $(groups); do
+    printf '    %s) subs="%s" ;;\n' "$g" "$(subcommands "$g")"
+  done
+  cat <<'EOF'
+    *) return ;;
+  esac
+  COMPREPLY=( $(compgen -W "$subs" -- "$cur") )
+}
+complete -F _omakux omakux
+EOF
+}
+
+gen_fish() {
+  cat <<EOF
+# omakux — completion para fish (generado: omakux completion fish)
+# instala: omakux completion install fish
+complete -c omakux -l help -d 'Muestra la ayuda'
+complete -c omakux -l version -d 'Versión'
+complete -c omakux -f -n 'test (count (commandline -opc)) -eq 1' -a '$(groups | tr ' ' ' ')'
+EOF
+  local g subs
+  for g in $(groups); do
+    subs="$(subcommands "$g")"
+    subs="${subs#"${subs%%[![:space:]]*}"}"
+    subs="${subs%"${subs##*[![:space:]]}"}"
+    [ -n "$subs" ] || continue
+    printf "complete -c omakux -f -n '__fish_seen_subcommand_from %s' -a '%s'\n" "$g" "$subs"
+  done
+}
+
+gen_zsh() {
+  cat <<EOF
+#compdef omakux
+# omakux — completion para zsh (generado: omakux completion zsh)
+# instala: omakux completion install zsh  (requiere fpath=(~/.zfunc \$fpath))
+_omakux() {
+  local -a words_all
+  if (( CURRENT == 2 )); then
+    words_all=( $(groups) )
+    _describe -t commands 'omakux' words_all
+    return
+  fi
+  case "\${words[2]}" in
+EOF
+  local g subs
+  for g in $(groups); do
+    subs="$(subcommands "$g")"
+    if [ -n "$subs" ]; then
+      printf '    %s) local -a sub; sub=( %s ); _describe -t subcommands "%s" sub ;;\n' \
+        "$g" "$subs" "$g"
+    else
+      printf '    %s) ;;\n' "$g"
+    fi
+  done
+  cat <<'EOF'
+    *) return ;;
+  esac
+}
+_omakux "$@"
+EOF
+}
+
+generate() {
+  case "$1" in
+    bash) gen_bash ;;
+    fish) gen_fish ;;
+    zsh) gen_zsh ;;
+    *) die "shell desconocido: $1 (uso: omakux completion [install] [bash|fish|zsh])" ;;
+  esac
+}
+
+install_for() {
+  local lang="$1" dest
+  case "$lang" in
+    fish) dest="$HOME/.config/fish/completions/omakux.fish" ;;
+    bash) dest="$HOME/.local/share/bash-completion/completions/omakux" ;;
+    zsh)
+      dest="${ZDOTDIR:-$HOME}/.zfunc/_omakux"
+      if [ ! -f "${ZDOTDIR:-$HOME}/.zshrc" ] || ! grep -q 'fpath=.*zfunc' "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null; then
+        echo "  · zsh: añade a ~/.zshrc:  fpath=(~/.zfunc \$fpath); autoload -Uz compinit && compinit"
+      fi
+      ;;
+    *) die "shell desconocido: $lang (uso: omakux completion [install] [bash|fish|zsh])" ;;
+  esac
+
+  if [ "$OMAKUX_DRY" = "1" ]; then
+    printf '%sDRY completion %s -> %s%s\n' "$_c_dim" "$lang" "$dest" "$_c_reset"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  generate "$lang" >"$dest"
+  ok "completion $lang instalada: $dest"
+}
+
+detect_lang() {
+  case "$(basename "${SHELL:-bash}")" in
+    fish) echo fish ;;
+    zsh) echo zsh ;;
+    *) echo bash ;;
+  esac
+}
+
+action="print"
+lang=""
+for arg in "$@"; do
+  case "$arg" in
+    install) action="install" ;;
+    bash | fish | zsh) lang="$arg" ;;
+    -h | --help)
+      echo "uso: omakux completion [install] [bash|fish|zsh]"
+      echo "  sin argumentos: imprime la completion para tu shell actual"
+      echo "  install:        la deja en su sitio (~/.config/fish, ...)"
+      exit 0
+      ;;
+    *) die "uso: omakux completion [install] [bash|fish|zsh]" ;;
+  esac
+done
+
+[ -n "$lang" ] || lang="$(detect_lang)"
+
+if [ "$action" = "install" ]; then
+  install_for "$lang"
+else
+  generate "$lang"
+fi

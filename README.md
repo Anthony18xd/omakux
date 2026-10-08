@@ -49,6 +49,8 @@ Fases: `check packages identification terminal gnome apps system hyprland theme 
 | Comando | Qué hace |
 |---|---|
 | `omakux` | lista todos los comandos |
+| `omakux help <comando>` | ficha de un comando (uso, grupo, hermanos) |
+| `omakux completion [install]` | completado para bash, fish o zsh |
 | `omakux update` | snapshot + apt + flatpak + snap + git + reaplica configs |
 | `omakux doctor` | diagnóstico de la instalación |
 | `omakux menu` | menú interactivo (wofi/gum) |
@@ -119,8 +121,8 @@ omakux/
 ## Desarrollo
 
 ```bash
-omakux lint   # shellcheck sobre los 61 scripts
-omakux test   # lint + 48 tests bats
+omakux lint   # shellcheck sobre los 62 scripts
+omakux test   # lint + 60 tests bats
 ```
 
 (atajos: `scripts/lint.sh` y `scripts/test.sh`, lo mismo que corre la CI)
@@ -132,6 +134,8 @@ tu ni tu instalación. La CI ejecuta lo mismo en un contenedor Ubuntu limpio.
 Reglas que la CI hace cumplir:
 
 - **shellcheck limpio** en todo el bash del repo (`.shellcheckrc`).
+- El **help** y las **completions** se generan desde los headers de cada
+  comando: si un comando no declara `summary`/`group`, se rompen los dos.
 - El **router** resuelve prefijos (`theme set` → `omakux-theme-set`), y todo
   comando expone `# omakux:summary` y `# omakux:group` (si no, el help se rompe).
 - **Nada se escribe en dry-run**: ni sellos de fase, ni configs, ni estado.

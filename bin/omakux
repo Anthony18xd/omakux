@@ -7,8 +7,8 @@ set -euo pipefail
 OMAKUX_SRC="${BASH_SOURCE[0]}"
 while [ -L "$OMAKUX_SRC" ]; do
   OMAKUX_DIR="$(cd "$(dirname "$OMAKUX_SRC")" && pwd)"
-  OMAKUX_SRC="$(readlink "$OMAKUX_SRC")"
-  case "$OMAKUX_SRC" in /*) ;; *) OMAKUX_SRC="$OMAKUX_DIR/$OMAKUX_SRC" ;; esac
+  OMAKUX_LINK="$(readlink "$OMAKUX_SRC")"
+  case "$OMAKUX_LINK" in /*) OMAKUX_SRC="$OMAKUX_LINK" ;; *) OMAKUX_SRC="$OMAKUX_DIR/$OMAKUX_LINK" ;; esac
 done
 OMAKUX_BIN="$(cd "$(dirname "$OMAKUX_SRC")" && pwd)"
 export OMAKUX_PATH="${OMAKUX_PATH:-$(dirname "$OMAKUX_BIN")}"
@@ -31,12 +31,113 @@ omakux_group() {
   }' "$1"
 }
 
+# nombres de comando visibles, en forma natural ("theme set", una por línea)
+omakux_commands() {
+  local f name
+  for f in "$OMAKUX_BIN"/omakux-*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    case "$name" in *.md | *.bak | *~) continue ;; esac
+    if grep -q '^# omakux:hidden' "$f" 2>/dev/null; then continue; fi
+    printf '%s\n' "${name#omakux-}" | tr '-' ' '
+  done | sort -u
+}
+
+# busca el comando más largo que exista entre los tokens dados.
+# deja RESOLVE_NAME (theme-set), RESOLVE_SCRIPT y RESOLVE_REST (lo que sobra).
+omakux_resolve() {
+  local -a words=("$@")
+  local n="${#words[@]}" name script
+  RESOLVE_NAME=""
+  RESOLVE_SCRIPT=""
+  RESOLVE_REST=()
+  while [ "$n" -ge 1 ]; do
+    name="$(IFS=-; printf '%s' "${words[*]:0:n}")"
+    script="$OMAKUX_BIN/omakux-$name"
+    if [ -f "$script" ]; then
+      RESOLVE_NAME="$name"
+      RESOLVE_SCRIPT="$script"
+      RESOLVE_REST=("${words[@]:n}")
+      return 0
+    fi
+    n=$((n - 1))
+  done
+  return 1
+}
+
+# líneas "uso: ..." que el propio comando imprime, con su indentación
+omakux_usage() {
+  { grep -o 'uso: [^"]*' "$1" 2>/dev/null || true; } |
+    sed -e 's/[[:space:]]*$//' -e 's/^/  /' | sort -u
+}
+
+# para typos: mismos subcomandos si el primer token existe, o nombres parecidos
+omakux_suggest() {
+  printf '%s\n' "$(omakux_commands)" | awk -v tok="$1" '
+    $1 == tok { exact = exact "  omakux " $0 "\n"; next }
+    {
+      w = $1
+      if (substr(w, 1, 1) == substr(tok, 1, 1) && (length(w) - length(tok))^2 <= 1)
+        fuzzy = fuzzy "  omakux " $0 "\n"
+    }
+    END {
+      n = split(exact, a, "\n")
+      if (exact != "") { printf "%s", exact; exit }
+      n = split(fuzzy, a, "\n")
+      shown = 0
+      for (i = 1; i <= n && shown < 6; i++)
+        if (a[i] != "") { print a[i]; shown++ }
+    }'
+}
+
+# omakux help <comando...>  →  la ficha completa de un comando
+omakux_help_cmd() {
+  if ! omakux_resolve "$@"; then
+    printf 'omakux: no existe el comando: %s\n' "$*" >&2
+    local hint
+    hint="$(omakux_suggest "${1:-}")"
+    [ -n "$hint" ] && printf '%s\n' "$hint" >&2
+    echo "Ejecuta 'omakux' para ver la lista de comandos." >&2
+    return 1
+  fi
+  local pretty summary group siblings
+  pretty="$(printf '%s' "$RESOLVE_NAME" | tr '-' ' ')"
+  summary="$(omakux_summary "$RESOLVE_SCRIPT")"
+  group="$(omakux_group "$RESOLVE_SCRIPT")"
+  siblings="$(printf '%s\n' "$(omakux_commands)" |
+    awk -v f="${RESOLVE_NAME%%-*}" '$1 == f && NF > 1 {
+      line = $0; sub(/^[^ ]+/, "", line)
+      printf "  omakux %s%s\n", f, line
+    }' | grep -v -F "omakux $pretty" || true)"
+
+  echo "omakux $pretty"
+  echo
+  printf '  %s\n' "$summary"
+  echo
+  echo "  grupo:  ${group:-general}"
+  echo "  ficha:  $RESOLVE_SCRIPT"
+  if [ "${#RESOLVE_REST[@]}" -gt 0 ]; then
+    echo "  args:   ${RESOLVE_REST[*]}"
+  fi
+  local usage
+  usage="$(omakux_usage "$RESOLVE_SCRIPT")"
+  if [ -n "$usage" ]; then
+    echo
+    printf '%s\n' "$usage"
+  fi
+  if [ -n "$siblings" ]; then
+    echo
+    echo "  del mismo grupo:"
+    printf '%s\n' "$siblings"
+  fi
+}
+
 omakux_list() {
   local version
   version="$(cat "$OMAKUX_PATH/version" 2>/dev/null || echo "?")"
   echo "omakux $version — opinionated Ubuntu workstation"
   echo
-  echo "usage: omakux <command> [args]"
+  echo "usage: omakux <command> [args]        (ficha: omakux help <command>)"
   echo
   local f name group summary
   for f in "$OMAKUX_BIN"/omakux-*; do
@@ -61,6 +162,11 @@ omakux_list() {
 
 case "$1" in
   -h | --help | help)
+    shift
+    if [ $# -gt 0 ]; then
+      omakux_help_cmd "$@"
+      exit $?
+    fi
     omakux_list
     exit 0
     ;;
@@ -68,21 +174,31 @@ case "$1" in
     cat "$OMAKUX_PATH/version"
     exit 0
     ;;
+  --commands)
+    omakux_commands
+    exit 0
+    ;;
 esac
 
-args=("$@")
-n=${#args[@]}
-while [ "$n" -ge 1 ]; do
-  name="$(IFS=-; echo "${args[*]:0:n}")"
-  script="$OMAKUX_BIN/omakux-$name"
-  if [ -f "$script" ]; then
-    [ -x "$script" ] || chmod +x "$script"
-    shift_args=("${args[@]:n}")
-    exec "$script" ${shift_args[@]+"${shift_args[@]}"}
-  fi
-  n=$((n - 1))
-done
+# omakux <comando> --help|-h|help  →  la ficha del comando
+last="${!#}"
+case "$last" in
+  -h | --help | help)
+    if [ $# -gt 1 ]; then
+      help_words=("${@:1:$#-1}")
+      omakux_help_cmd "${help_words[@]}"
+      exit $?
+    fi
+    ;;
+esac
 
-echo "omakux: comando desconocido: $*" >&2
-echo "Ejecuta 'omakux' para ver la lista de comandos." >&2
-exit 1
+if ! omakux_resolve "$@"; then
+  printf 'omakux: comando desconocido: %s\n' "$*" >&2
+  hint="$(omakux_suggest "${1:-}")"
+  [ -n "$hint" ] && printf '%s\n' "$hint" >&2
+  echo "Ejecuta 'omakux' para ver la lista de comandos." >&2
+  exit 1
+fi
+
+[ -x "$RESOLVE_SCRIPT" ] || chmod +x "$RESOLVE_SCRIPT"
+exec "$RESOLVE_SCRIPT" ${RESOLVE_REST[@]+"${RESOLVE_REST[@]}"}

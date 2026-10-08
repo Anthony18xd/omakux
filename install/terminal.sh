@@ -33,6 +33,12 @@ fi
 # --- fish config ---
 seed "$OMAKUX_PATH/config/fish/config.fish" "$HOME/.config/fish/config.fish"
 
+# --- completions de la CLI (se regeneran solas con omakux completion install) ---
+bash "$OMAKUX_PATH/bin/omakux-completion" install bash || warn "no se pudo instalar la completion de bash"
+if has fish; then
+  bash "$OMAKUX_PATH/bin/omakux-completion" install fish || warn "no se pudo instalar la completion de fish"
+fi
+
 # --- tmux ---
 seed "$OMAKUX_PATH/config/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 

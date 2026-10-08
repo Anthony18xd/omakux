@@ -23,7 +23,7 @@ echo "│  omakux v$(cat "$OMAKUX_PATH/version") — instalación completa      
 echo "└──────────────────────────────────────────────────────┘"
 echo
 echo "  · Sesiones: cierra sesión → en GDM elige GNOME o Hyprland"
-echo "  · CLI:      omakux            (lista de comandos)"
+echo "  · CLI:      omakux            (lista) · omakux help <comando> (ficha)"
 echo "  · Menú:     Super+Espacio (Hyprland) · 'omakux menu' (GNOME)"
 echo "  · Temas:    omakux theme list (tokyonight · catppuccin-mocha · gruvbox-dark)"
 echo "  · Snapshots: timeshift diario 09:00 → omakux snapshot list"
