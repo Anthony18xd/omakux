@@ -21,8 +21,8 @@ Inspirado en [Omarchy](https://omarchy.org) (DHH) y [Omakub](https://github.com/
 # desde este repo (desarrollo)
 bash install.sh
 
-# o remoto (cuando publiques el repo)
-curl -fsSL https://raw.githubusercontent.com/<tu-usuario>/omakux/main/boot.sh | bash
+# o remoto (una sola línea)
+curl -fsSL https://raw.githubusercontent.com/Anthony18xd/omakux/main/boot.sh | bash
 ```
 
 Requisitos: **Ubuntu 24.04+**, x86_64/aarch64, ~10 GB libres, internet, sudo.

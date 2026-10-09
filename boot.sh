@@ -4,7 +4,7 @@ set -euo pipefail
 # omakux:group install
 
 DEST="${OMAKUX_PATH:-$HOME/.local/share/omakux}"
-REPO="${OMAKUX_REPO:-https://github.com/anthony/omakux.git}"
+REPO="${OMAKUX_REPO:-https://github.com/Anthony18xd/omakux.git}"
 BRANCH="${OMAKUX_BRANCH:-main}"
 
 # Running from inside a local checkout? Just use it.
